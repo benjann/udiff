@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0.0  11aug2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.0  19aug2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -15,26 +15,40 @@
 
 {title:Title}
 
-{pstd}{hi:udiff} {hline 2}  Command to estimate an unidiff social-mobility model from individual-level data
+{pstd}{hi:udiff} {hline 2}  Command to estimate an unidiff model from individual-level data
 
 
 {marker syntax}{...}
 {title:Syntax}
 
+{pstd}
+    Single-layer syntax
+
 {p 8 15 2}
-    {cmd:udiff} {depvar} {indepvars} {ifin} {weight}
-    [{cmd:,}
-    {it:options}
-    ]
+    {cmd:udiff} {depvar} {help varlist:{it:xvars}} {ifin} {weight}{cmd:,} {opth layer(varlist)}
+    [ {it:options} ]
+
+{pstd}
+    Multiple-layer syntax
+
+{p 8 15 2}
+    {cmd:udiff} {depvar}
+    {cmd:(}{help varlist:{it:xvars1}}{cmd:)} 
+    {cmd:(}{help varlist:{it:xvars2}}{cmd:)} [ ... ] 
+    {ifin} {weight}{cmd:,}
+    {cmd:layer(}{help varlist:{it:varlist1}}{cmd:)}
+    {cmd:layer(}{help varlist:{it:varlist2}}{cmd:)}
+    [ ...  {it:options} ]
 
 {synoptset 22 tabbed}{...}
 {synopthdr}
 {synoptline}
 {syntab :Main}
-{synopt :{opth layer(varlist)}}layer variable(s); {cmd:layer()} is required{p_end}
+{synopt :{opth layer(varlist)}}layer variable(s); this option is required{p_end}
 {synopt :{opth cont:rols(varlist)}}constant-effect control variables{p_end}
 {synopt :{opt b:aseoutcome(#)}}value of {depvar} that will be the base outcome{p_end}
 {synopt :{opt nocons:tant}}suppress constant term{p_end}
+{synopt :{opth constr:aints(numlist)}}apply specified linear constraints{p_end}
 
 {syntab :SE/Robust}
 {synopt :{opth vce(vcetype)}}{it:vcetype} may be {opt oim},
@@ -47,18 +61,18 @@
 
 {syntab :Reporting}
 {synopt :{opt l:evel(#)}}set confidence level; default is {cmd:level(95)}{p_end}
-{synopt :{opt all:equations}}report results for all equations; by
-    default only the unidiff parameters are displayed{p_end}
+{synopt :{opt all:equations}}report results for all equations; by default only the unidiff parameters are displayed{p_end}
 {synopt :{opt eform}}report coefficients in exponentiated form{p_end}
+{synopt :{opt noh:eader}}suppress header display above coefficient table{p_end}
 {synopt :{it:{help estimation_options##display_options:display_options}}}standard display options{p_end}
-{synopt :{opt noi:sily}}display output from initial constant-mobility model{p_end}
 {synopt :{opt coefl:egend}}display legend instead of statistics{p_end}
+{synopt :{opt noi:sily}}display output from initial constant-mobility model{p_end}
 
 {syntab :Maximization}
-{synopt :{opt iter:ate(#)}}perform maximum of # iterations{p_end}
-{synopt :{it:{help maximize:maximize_options}}}other maximization options{p_end}
+{synopt :{it:{help maximize:maximize_options}}}maximization options{p_end}
+{synopt :{opt initopt:s(options)}}options to be passed through to initial {helpb mlogit}{p_end}
 {synoptline}
-{p 4 6 2}{it:indepvars}, {cmd:layer()}, and {cmd:controls()} may contain factor variables; see {help fvvarlist}.{p_end}
+{p 4 6 2}{it:xvars}, {cmd:layer()}, and {cmd:controls()} may contain factor variables; see {help fvvarlist}.{p_end}
 {p 4 6 2}{cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed; see help {help weight}.{p_end}
 {p 4 6 2}{helpb udiff##postest:predict} and other postestimation commands are available after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
 
@@ -83,8 +97,8 @@
 
 {pstd}
     {it:depvar} is the (categorical) destination variable (e.g. class of
-    respondent); {it:indepvars} specifies the origin variable(s) (e.g. class of
-    respondent's parents). Typically, {it:indepvars} only contains a single
+    respondent); {it:xvars} specifies the origin variable(s) (e.g. class of
+    respondent's parents). Typically, {it:xvars} only contains a single
     categorical variable specified as {cmd:i.}{it:varname}, although multiple
     or continuous origin variables are allowed.
 
@@ -111,8 +125,14 @@
     outcome. The default is to choose the most frequent outcome.
 
 {phang}
-    {opt noconstant} suppresses the constant (outcome-specific intercept)
+    {opt noconstant} suppresses the constant (outcome-specific intercepts)
     in the model.
+
+{phang}
+    {opth constraints(numlist)} applies linear constraints to 
+    the estimation. {it:numlist} specifies the constraints by number, after 
+    they have been defined using the {helpb constraint} command. An  
+    {help udiff##exconstr:example} is provided below.
 
 {phang}
     {opt vce(vcetype)} specifies the type of variance estimation to be used
@@ -138,7 +158,7 @@
 
 {phang}
     {opt level(#)} specifies the confidence level, as a percentage, for
-    confidence intervals of the coefficients. The default is {cmd:level(95)}
+    confidence intervals. The default is {cmd:level(95)}
     or as set by {helpb set level}.
 
 {phang}
@@ -146,17 +166,18 @@
     only the first equation containing the unidiff parameters is displayed.
 
 {phang}
-    {opt eform} displays the coefficients in exponentiated form. For each coefficient,
+    {opt eform} displays the coefficients in exponentiated form. That is, for each coefficient,
     exp({it:b}) rather than {it:b} is displayed, and standard errors and
     confidence intervals are transformed accordingly.
 
 {phang}
-    {it:display_options} are standard display options; see
-    {helpb estimation_options##display_options:[R] estimation options}.
+    {opt noheader} suppresses the header above the coefficient table 
+    that displays the final log-likelihood value, the number of observations, 
+    and the unidiff significance test.
 
 {phang}
-    {opt noisily} displays the {helpb mlogit} output of the initial
-    constant-mobility model. By default, the initial model is not displayed.
+    {it:display_options} are standard display options; see
+    {helpb estimation_options##display_options:[R] estimation options}.
 
 {phang}
     {opt coeflegend} specifies that the legend of the coefficients and how
@@ -164,23 +185,27 @@
     statistics for the coefficients.
 
 {phang}
-    {opt iterate(#)} specifies the maximum number of iterations. This option will
-    applied to both, the initial constant-mobility model and the
-    unidiff model. The default is {cmd:iterate(16000)} or as set by
-    {helpb set maxiter}.
+    {opt noisily} displays the {helpb mlogit} output of the initial
+    constant-mobility model. By default, the initial model is not displayed.
 
 {phang}
-    {it:maximize_options} are other maximization options. See
-    {helpb maximize:[R] maximize}. These option will only be applied to
-    the unidiff model.
+    {it:maximize_options} are maximization options such as {cmd:iterate()} or 
+    {cmd:difficult}. See {helpb maximize:[R] maximize}. These options will only 
+    be applied to the unidiff model, but not to the initial constant-mobility model.
+
+{marker initopts}{...}
+{phang}
+    {opt initopts(options)} specifies options to be passed through to the 
+    {helpb mlogit} call that is used to estimate the initial 
+    constant-mobility model; see {helpb mlogit:[R] mlogit}.
 
 
 {marker postest}{...}
 {title:Postestimation commands}
 
 {pstd}
-    Usual postestimation commands such as {helpb predict}, {helpb test}, {helpb
-    lincom}, {helpb nlcom}, {helpb margins}, or {helpb suest} are available
+    Usual postestimation commands such as {helpb predict}, {helpb test}, 
+    {helpb lincom}, {helpb nlcom}, {helpb margins}, or {helpb suest} are available
     after {cmd:udiff}. The syntax for {helpb predict} is as follows:
 
 {p 8 15 2}
@@ -200,7 +225,7 @@
     {opt xb} calculates linear predictions for the equation specified by
     {cmd:equation()}. {cmd:xb} is the default unless {cmd:pr} or {cmd:scores}
     is specified. If {opt equation()} is omitted, linear predictions are calculated
-    for the first equation (the equation containing the unidiff parameters).
+    for the first equation.
 
 {phang2}
     {opt equation(equation)} specifies the equation for which linear
@@ -215,7 +240,7 @@
 
 {phang2}
     {opt outcome(outcome)} specifies the outcome for which predicted
-    probabilities are to be calculated. {it:outcome} can be an outcome name, an
+    probabilities are to be calculated. {it:outcome} can be an
     outcome value, or an outcome index specified as {cmd:#1}, {cmd:#2}, etc. Option
     {opt outcome()} is only allowed with {cmd:pr}.
 
@@ -229,6 +254,8 @@
 {marker examples}{...}
 {title:Examples}
 
+{dlgtab:Basic example}
+
 {pstd}
     The unidiff model in Example 2 in Pisati (2000) can be reproduced as follows:
 
@@ -238,7 +265,7 @@
 {pstd}
     A likelihood-ratio test against the constant-mobility model is included in the
     header of the output table. The test is highly significant and confirms that
-    there are differences in social mobility between the countries.
+    there are differences in the unidiff parameters between the countries.
 
 {pstd}
     By default, {cmd:udiff} omits the base category from the output
@@ -254,9 +281,31 @@
 
         . {stata udiff, all}
 
+{marker exconstr}{...}
+{dlgtab:Specifying constraints}
+
+{pstd}
+    In case of empty cells or similar problems, it may be necessary to specify 
+    constraints for the model to converge. Using the same data as above, assume 
+    that the combinations of father = "NonManual" and son = "Farm" is missing:
+
+        . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
+        . {stata replace obs = 0 if son==3 & father==1}
+
+{pstd}
+    To make {cmd:udiff} converge in this example, we can set the parameter
+    for "NonManual" in the psi-equation for "Farm" to zero (while at the same time
+    making sure that "NonManual" is not used as the base category). The following
+    commands would do:
+
+        . {stata "constraint 1 [Psi_3]: 1.father"}
+        . {stata udiff son ib2.father [fweight=obs], layer(i.country) constraints(1)}
+
 
 {marker methods}{...}
 {title:Methods and formulas}
+
+{dlgtab:The unidiff model}
 
 {pstd}
     The unidiff model is typically used to study differences in
@@ -271,7 +320,7 @@
 
 {pstd}
     where {it:a} is an overall intercept capturing the average cell frequency,
-    {it:a}(x), {it:a}(y), and {it:a}(z) capture the marginal distributions
+    {it:a}(x), {it:a}(y), and {it:a}(z) are factors capturing the marginal distributions
     of X, Y, and Z, {it:a}(x,y), {it:a}(x,z), and {it:a}(y,z)
     capture two-way associations, and {it:a}(x,y,z) captures the three-way
     association. For example, if X, Y, and Z are independent from each other,
@@ -296,25 +345,30 @@
 
 {pstd}
     That is, the unidiff model assumes that there is a common association pattern
-    between X and Y, but the "strength" of the pattern can
-    differ across cohorts. Traditionally, the unidiff model has been estimated
-    from tabular data. However, the model (or, at least, the interesting
-    part of it) can also be expressed such that it takes the form of a regression
-    model fitted to individual-level data. From a perspective with Y as the
-    "dependent" variable, the saturated log-linear
-    model is equivalent to a multinomial logit of Y on X, Z, and the interaction
-    between X and Z, where X and Z are treated as factor variables. Likewise,
-    the constant-mobility model is a multinomial logit of Y on X and Z, without
-    interaction between X and Z. Furthermore, the
-    unidiff model is equivalent to a multinomial logit written as
+    between X and Y, but the "strength" of the pattern can differ across
+    cohorts.
 
-        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + Z'exp({it:phi}) * X'{it:psi}(y)) / Q
+{dlgtab:Re-expression at the individual level}
+
+{pstd}
+    Traditionally, the unidiff model has been estimated from tabular data.
+    However, the model (or, at least, the interesting part of it) can also be
+    expressed such that it takes the form of a regression model fitted to
+    individual-level data. From a perspective with Y as the "dependent"
+    variable, the saturated log-linear model is equivalent to a multinomial
+    logit of Y on X, Z, and the interaction between X and Z, where X and Z are
+    treated as factor variables. Likewise, the constant-mobility model is a
+    multinomial logit of Y on X and Z, without interaction between X and Z.
+    Furthermore, the unidiff model is equivalent to a multinomial logit written
+    as
+
+        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + exp(Z'{it:phi}) * X'{it:psi}(y)) / Q
 
 {pstd}
     where Q is the sum of the expression in the numerator across all levels of
     Y, and W is equal to Z augmented by a constant, i.e. W = (1,Z')' (again, X
-    and Z are treated as factor variables, i.e. think of X and Z are vectors
-    containing dummy variables). {it:theta}(y), {it:phi},
+    and Z are treated as factor variables, i.e. think of X and Z as vectors
+    of dummy variables). {it:theta}(y), {it:phi},
     and {it:psi}(y) are parameter vectors; {it:phi} is common to all levels of
     Y, {it:theta}(y) and {it:psi}(y) are level-specific. In this model,
     {it:theta}(y) represents {it:a}(y) and {it:a}(y,z) (the marginal
@@ -324,21 +378,31 @@
     association between X and Y). Terms {it:a}(x) (marginal distribution of X),
     {it:a}(z) (marginal distribution of Z), {it:a}(x,z) (association between X
     and Z) are not represented in the model (i.e., the model only contains
-    parameters that are relevant for Y).
+    parameters that are related to Y).
+
+{dlgtab:Multiple-layer generalization}
 
 {pstd}
-    Estimating the unidiff model from individual-level data is more demanding
-    than fitting the model to a contingency table (although note that
-    {cmd:fweight}s can be used on collapsed data for efficient computation),
-    but it brings about enhanced flexibility. For example, it is easily
-    possible to include continuous (rather than categorical) origin and layer
-    variables, control variables whose effects as assumed constant over cohorts
-    can be taken into account (by including them in W), and standard errors for
-    the parameter estimates are readily available (including support for
-    sampling weights or other characteristics of a complex survey design).
+    Generally seen, the unidiff model is just a multinomial logit model
+    that contains a special kind of interaction terms. The model may thus be
+    useful also for research questions that have nothing to do with social
+    mobility. Furthermore, the model can be generalize so that it contains
+    multiple layer dimensions. Let X1 and X2 be two sets of independent
+    variables, Z1 and Z2 two sets of layer variables, and C a set of
+    control variables that are not interacted with Z1 or Z2. The model can then be
+    written as:
+
+{p 8 8 2}Pr(Y = y| X1, Z1, X2, Z2, C) ={p_end}
+{p 12 12 2}exp(W'{it:theta}(y) + exp(Z1'{it:phi1}) * X1'{it:psi1}(y) + exp(Z2'{it:phi2}) * X2'{it:psi2}(y)) / Q{p_end}
 
 {pstd}
-    {cmd:udiff} estimates the unidiff model using {helpb ml}. To obtain viable
+    where W = (1, Z1', X1', Z2', X2', C')'. The model can be extended analogously 
+    to accommodate more than two layer dimensions.
+
+{dlgtab:Estimation}
+
+{pstd}
+    {cmd:udiff} estimates the unidiff model using {helpb ml}. To obtain good
     starting values, {cmd:udiff} first fits a constant-mobility model using
     {helpb mlogit}. A test of the unidiff model against the constant-mobility
     model is included in the output (as an LR test or a Wald test, depending on
@@ -350,41 +414,62 @@
     {it:phi} is set to zero for one of the levels of Z if Z is a categorical variable. exp({it:phi})
     then expresses the unidiff scaling factors with respect to this base category.
 
+{pstd}
+    Estimating the unidiff model from individual-level data is more demanding
+    than fitting the model to a contingency table (although note that, for 
+    efficient computation, {cmd:fweight}s can be used on collapsed data),
+    but it brings about enhanced flexibility. For example, it is easily
+    possible to include continuous (rather than categorical) origin and layer
+    variables, control variables whose effects as assumed constant over cohorts
+    can be taken into account (by including them in W), and standard errors for
+    the parameter estimates are readily available (including support for
+    sampling weights or other characteristics of a complex survey design).
+
 
 {marker saved_results}{...}
 {title:Saved results}
 
 {pstd}
     {cmd:udiff} stores results as described in {helpb ml##results:[R] ml},
-    as well as the following:
+    as well as the following elements:
 
-{p2colset 7 20 24 2}{...}
-{p2col 5 20 24 2: Scalars}{p_end}
+{p2colset 7 22 26 2}{...}
+{p2col 5 22 26 2: Scalars}{p_end}
 {p2col : {cmd:e(k_out)}}number of outcomes
     {p_end}
-{p2col : {cmd:e(baseout)}}the value of {it:depvar} to be treated as the base outcome
-    {p_end}
 {p2col : {cmd:e(ibaseout)}}index of the base outcome
+    {p_end}
+{p2col : {cmd:e(k_layer)}}number of layers
     {p_end}
 {p2col : {cmd:e(k_eform)}}number of equations to be affected by the {cmd:eform} option
     {p_end}
 
-{p2col 5 20 24 2: Macros}{p_end}
-{p2col : {cmd:e(indepvars)}}name(s) of origin variable(s)
+{p2col 5 22 26 2: Macros}{p_end}
+{p2col : {cmd:e(layer)}}names of layer variables (if case of a single layer)
     {p_end}
-{p2col : {cmd:e(layer)}}name(s) of layer variable(s)
+{p2col : {cmd:e(layer1)}}names of layer 1 variables (in case of multiple layers)
+    {p_end}
+{p2col : {cmd:e(layer2)}}names of layer 2 variables (in case of multiple layers)
+    {p_end}
+{p2col : ...}
+    {p_end}
+{p2col : {cmd:e(xvars)}}names of independent variables (if case of a single layer).
+    {p_end}
+{p2col : {cmd:e(xvars1)}}names of layer 1 independent variables  (in case of multiple layers)
+    {p_end}
+{p2col : {cmd:e(xvars2)}}names of layer 2 independent variables (in case of multiple layers)
+    {p_end}
+{p2col : ...}
     {p_end}
 {p2col : {cmd:e(controls)}}names of control variables
     {p_end}
 {p2col : {cmd:e(eqnames)}}names of equations
     {p_end}
-{p2col : {cmd:e(outnames)}}names of outcomes
+{p2col : {cmd:e(out)}}values of {it:depvar}
     {p_end}
-{p2col : {cmd:e(baselab)}}name of base outcome
+{p2col : {cmd:e(baseout)}}value of {it:depvar} treated as the base outcome
     {p_end}
-
-{p2col 5 20 24 2: Matrices}{p_end}
-{p2col : {cmd:e(out)}}outcome values
+{p2col : {cmd:e(out_labels)}}value labels of {it:depvar} (if available)
     {p_end}
 
 

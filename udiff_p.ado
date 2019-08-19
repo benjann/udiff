@@ -1,4 +1,4 @@
-*! version 1.0.0  09aug2019  Ben Jann & Simon Seiler
+*! version 1.1.0  19aug2019  Ben Jann & Simon Seiler
 
 program define udiff_p
     if "`e(cmd)'" != "udiff" {
@@ -71,21 +71,21 @@ program define udiff_p
         }
     }
     if `hasout' {
-        OutNo `outcome'
-        local outno `"`s(outno)'"'
-        local outlab `"`s(outlab)'"'
+        NameAndNum outcome "`e(k_out)'" `"`e(out)'"' `"`outcome'"'
+        local outno `"`s(num)'"'
+        local outval `"`s(name)'"'
     }
     else if `haseq' {
-        EqNo `equation'
-        local eqoptno  `"equation(#`s(eqno)')"'
-        local eqlab `"`s(eqlab)'"'
-        local eqoptnm `"equation(`"`eqlab'"')"'
+        NameAndNum equation "`e(k_eq)'" `"`e(eqnames)'"' `"`equation'"'
+        local eqoptno  `"equation(#`s(num)')"'
+        local eqname `"`s(name)'"'
+        local eqoptnm `"equation(`"`eqname'"')"'
     }
     
     // xb
     if `"`type'"' == "xb" {
         _predict `typlist' `varlist' `if' `in', xb `eqoptno'
-        label var `varlist' `"Linear prediction from [`eqlab']"'
+        label var `varlist' `"Linear prediction from [`eqname']"'
         sreturn clear
         exit
     }
@@ -93,26 +93,26 @@ program define udiff_p
     // scores
     if `"`type'"' == "scores" {
         local nout = e(k_out)
+        local out `"`e(out)'"'
         local ibase = e(ibaseout)
-        forval i = 1/`nout' {
-            local val = el(e(out), 1,`i')
-            local olist `olist' `val'
-        }
+        local nlayer = e(k_layer)
         local vlist
         foreach var of local varlist {
             gettoken vtyp typlist : typlist
             local vlist `vlist' `vtyp' `var'
         }
         nobreak {
-            global UDIFF_nout  `nout'
-            global UDIFF_ibase `ibase'
-            global UDIFF_olist `olist'
+            global UDIFF_nout   `nout'
+            global UDIFF_out    `out'
+            global UDIFF_ibase  `ibase'
+            global UDIFF_nlayer `nlayer'
             capture noisily break {
                 ml score `vlist' `if' `in', `eqoptnm'
             }
             global UDIFF_nout
+            global UDIFF_out
             global UDIFF_ibase
-            global UDIFF_olist
+            global UDIFF_nlayer
             if _rc exit _rc
             sreturn clear
             exit
@@ -123,20 +123,26 @@ program define udiff_p
     tempvar touse den xb phi psi theta
     mark `touse' `if' `in'
     quietly {
-        _predict double `phi' if `touse', eq(#1) xb
-        replace `phi' = exp(`phi') if `touse'
         gen double `den' = 1 if `touse'
-        local kout = e(k_out)
+        local nout = e(k_out)
+        local nlayer = e(k_layer)
         local j 0
-        forval i = 1/`kout' {
+        forval i = 1/`nout' {
             if `i' == e(ibaseout) continue
             local ++j
-            local eqno = 1 + `j'
-            _predict double `psi' if `touse', eq(#`eqno') xb
-            local eqno = 1 + (`nout'-1) + `j'
+            gen double `xb' = 0 if `touse'
+            forv l=1/`nlayer' {
+                _predict double `phi' if `touse', eq(#`l') xb
+                replace `phi' = exp(`phi') if `touse'
+                local eqno = `nlayer' + (`l'-1)*(`nout'-1) + `j'
+                _predict double `psi' if `touse', eq(#`eqno') xb
+                replace `xb' = `xb' + `phi'*`psi' if `touse'
+                drop `phi' `psi'
+            }
+            local eqno = `nlayer' + `nlayer'*(`nout'-1) + `j'
             _predict double `theta' if `touse', eq(#`eqno') xb
-            gen double `xb' = `theta' + `phi'*`psi' if `touse'
-            drop `theta' `psi'
+            replace `xb' = `xb' + `theta' if `touse'
+            drop `theta'
             // note from mlogit_p.ado:
             // If `den'<0, then `den'==+inf.
             // If `den'==-1, then there is just one +inf: p=0 if
@@ -161,7 +167,7 @@ program define udiff_p
         gen `typlist' `varlist' = cond(`den'>0,exp(`xbsel')/`den', /*
             */ cond(exp(`xbsel')<.,0,cond(`den'==-1,1,.))) if `touse'
     }
-    label var `varlist' `"Pr(`e(depvar)'==`outlab')"'
+    label var `varlist' `"Pr(`e(depvar)'==`outval')"'
     sreturn clear
 end
 
@@ -222,78 +228,34 @@ program ParseOptions, sclass
     sreturn local outcome `"`outcome'"'
 end
 
-program define OutNo, sclass
+program define NameAndNum, sclass
     sreturn clear
-    local outlab = trim(`"`0'"')
-    local kout = e(k_out)
-    local outlist `"`e(outnames)'"'
-    if substr(`"`outlab'"',1,1)=="#" {
-        local i = substr(`"`outlab'"',2,.)
+    gettoken tag  0 : 0
+    gettoken k    0 : 0
+    gettoken list 0 : 0
+    gettoken s      : 0
+    if substr(`"`s'"',1,1)=="#" {
+        local i = substr(`"`s'"',2,.)
         capt confirm integer number `i'
         if _rc==0 capt assert (`i'>0)
         if _rc {
-            di as err `"invalid outcome(): `outlab'"'
+            di as err `"invalid `tag'(): `s'"'
             exit 198
         }
-        if `i'<=`kout' {
-            sreturn local outno "`i'"
-            sreturn local outlab : word `i' of `outlist'
+        if `i'<=`k' {
+            sreturn local num "`i'"
+            sreturn local name : word `i' of `list'
             exit
         }
     }
-    else {
-        capture confirm number `outlab'
-        if _rc == 0 {
-            forv i = 1/`kout' {
-                if (reldif(el(e(out),1,`i'),`outlab') < 1e-7) {
-                    sreturn local outno "`i'"
-                    sreturn local outlab : word `i' of `outlist'
-                    exit
-                }
-            }
-        }
-        else {
-            if `:list outlab in outlist' {
-                local i : list posof `"`outlab'"' in outlist
-                sreturn local outno "`i'"
-                sreturn local outlab `"`outlab'"'
-                exit
-            }
-        }
-    }
-    di as error `"outcome `outlab' not found"'
-    exit 303
-end
-
-program define EqNo, sclass
-    sreturn clear
-    local eqlab = trim(`"`0'"')
-    local keq = e(k_eq)
-    local eqlist `"`e(eqnames)'"'
-    if bsubstr(`"`eqlab'"',1,1)=="#" {
-        local i = substr(`"`eqlab'"',2,.)
-        capt confirm integer number `i'
-        if _rc==0 capt assert (`i'>0)
-        if _rc {
-            di as err `"invalid equation(): `eqlab'"'
-            exit 198
-        }
-        if `i'<=`keq' {
-            sreturn local eqno "`i'"
-            sreturn local eqlab : word `i' of `eqlist'
-            exit
-        }
-    }
-    else if `:list eqlab in eqlist' {
-        local i : list posof `"`eqlab'"' in eqlist
-        sreturn local eqno "`i'"
-        sreturn local eqlab `"`eqlab'"'
+    else if `:list s in list' {
+        local i: list posof `"`s'"' in list
+        sreturn local num "`i'"
+        sreturn local name `"`s'"'
         exit
     }
-    di as error `"equation `eqlab' not found"'
+    di as error `"`tag' `s' not found"'
     exit 303
 end
-
-
 
 
