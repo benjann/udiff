@@ -504,7 +504,7 @@
     Thanks for citing this software as follows:
 
 {pmore}
-    Jann, B., S. Seiler. 2019. udiff: Stata module to estimate an unidiff
-    social-mobility model from individual-level data. Available from
-    {browse "http://ideas.repec.org/c/boc/bocode/s?.html"}.
+    Jann, B., S. Seiler. 2019. udiff: Stata module to estimate an unidiff model 
+    from individual-level data. Available from
+    {browse "http://github.com/benjann/udiff"}.
 
