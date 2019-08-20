@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.0  19aug2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.1  20aug2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -22,14 +22,14 @@
 {title:Syntax}
 
 {pstd}
-    Single-layer syntax
+    Unidiff model
 
 {p 8 15 2}
     {cmd:udiff} {depvar} {help varlist:{it:xvars}} {ifin} {weight}{cmd:,} {opth layer(varlist)}
     [ {it:options} ]
 
 {pstd}
-    Multiple-layer syntax
+    Generalized unidiff model
 
 {p 8 15 2}
     {cmd:udiff} {depvar}
@@ -66,7 +66,7 @@
 {synopt :{opt noh:eader}}suppress header display above coefficient table{p_end}
 {synopt :{it:{help estimation_options##display_options:display_options}}}standard display options{p_end}
 {synopt :{opt coefl:egend}}display legend instead of statistics{p_end}
-{synopt :{opt noi:sily}}display output from initial constant-mobility model{p_end}
+{synopt :{opt noi:sily}}display output from initial constant-fluidity model{p_end}
 
 {syntab :Maximization}
 {synopt :{it:{help maximize:maximize_options}}}maximization options{p_end}
@@ -113,7 +113,17 @@
     {cmd:i.}{it:varname} (e.g. countries or birth-cohort categories). However,
     multiple variables or continuous variables are allowed. For example,
     specify {cmd:layer(c.cohort##c.cohort)} to model the unidiff scaling factor
-    as a quadratic function of variable {cmd:cohort}.
+    as a quadratic function of variable {cmd:cohort}. Likewise, if your data contains
+    information on countries and birth cohorts, you could type 
+    {cmd:layer(i.country i.cohort)} to include separate 
+    unidiff parameters for both dimensions. Furthermore, 
+    you could type {cmd:layer(i.country##i.cohort)} to include unidiff parameters
+    for all country-cohort combinations.
+
+{pmore}
+    Option {cmd:layer()} is required. If multiple sets of {it:xvars} are 
+    specified (generalized unidiff model), multiple {cmd:layer()} options are 
+    required (one for each set of {it:xvars}).
 
 {phang}
     {opt controls(varlist)} specifies control variables whose effects are
@@ -186,18 +196,18 @@
 
 {phang}
     {opt noisily} displays the {helpb mlogit} output of the initial
-    constant-mobility model. By default, the initial model is not displayed.
+    constant-fluidity model. By default, the initial model is not displayed.
 
 {phang}
     {it:maximize_options} are maximization options such as {cmd:iterate()} or 
     {cmd:difficult}. See {helpb maximize:[R] maximize}. These options will only 
-    be applied to the unidiff model, but not to the initial constant-mobility model.
+    be applied to the unidiff model, but not to the initial constant-fluidity model.
 
 {marker initopts}{...}
 {phang}
     {opt initopts(options)} specifies options to be passed through to the 
     {helpb mlogit} call that is used to estimate the initial 
-    constant-mobility model; see {helpb mlogit:[R] mlogit}.
+    constant-fluidity model; see {helpb mlogit:[R] mlogit}.
 
 
 {marker postest}{...}
@@ -263,7 +273,7 @@
         . {stata udiff son i.father [fweight=obs], layer(i.country)}
 
 {pstd}
-    A likelihood-ratio test against the constant-mobility model is included in the
+    A likelihood-ratio test against the constant-fluidity model is included in the
     header of the output table. The test is highly significant and confirms that
     there are differences in the unidiff parameters between the countries.
 
@@ -332,10 +342,10 @@
         ln {it:mu}(x,y,z) = {it:a} + {it:a}(x) + {it:a}(y) + {it:a}(z) + {it:a}(x,y) + {it:a}(x,z) + {it:a}(y,z)
 
 {pstd}
-    This is the so-called constant-mobility model. The saturated
+    This is the so-called constant-fluidity model. The saturated
     model accurately describes the data, but has too many parameters
-    to be informative; the constant-mobility model is too
-    simplistic because it assumes away any change in mobility. The unidiff
+    to be informative; the constant-fluidity model is too
+    simplistic because it assumes away any change in relative mobility. The unidiff
     model takes a middle ground in that it allows the association between X and Y
     to vary with Z, but places a specific restriction on the form of this
     variation. In particular, the unidiff model introduces a scaling factor
@@ -357,7 +367,7 @@
     individual-level data. From a perspective with Y as the "dependent"
     variable, the saturated log-linear model is equivalent to a multinomial
     logit of Y on X, Z, and the interaction between X and Z, where X and Z are
-    treated as factor variables. Likewise, the constant-mobility model is a
+    treated as factor variables. Likewise, the constant-fluidity model is a
     multinomial logit of Y on X and Z, without interaction between X and Z.
     Furthermore, the unidiff model is equivalent to a multinomial logit written
     as
@@ -380,14 +390,14 @@
     and Z) are not represented in the model (i.e., the model only contains
     parameters that are related to Y).
 
-{dlgtab:Multiple-layer generalization}
+{dlgtab:Generalization: multiple unidiff components}
 
 {pstd}
     Generally seen, the unidiff model is just a multinomial logit model
     that contains a special kind of interaction terms. The model may thus be
     useful also for research questions that have nothing to do with social
-    mobility. Furthermore, the model can be generalize so that it contains
-    multiple layer dimensions. Let X1 and X2 be two sets of independent
+    mobility. Furthermore, the model can be generalized so that it contains
+    multiple unidiff components. Let X1 and X2 be two sets of independent
     variables, Z1 and Z2 two sets of layer variables, and C a set of
     control variables that are not interacted with Z1 or Z2. The model can then be
     written as:
@@ -397,14 +407,14 @@
 
 {pstd}
     where W = (1, Z1', X1', Z2', X2', C')'. The model can be extended analogously 
-    to accommodate more than two layer dimensions.
+    to accommodate more than two unidiff components.
 
 {dlgtab:Estimation}
 
 {pstd}
     {cmd:udiff} estimates the unidiff model using {helpb ml}. To obtain good
-    starting values, {cmd:udiff} first fits a constant-mobility model using
-    {helpb mlogit}. A test of the unidiff model against the constant-mobility
+    starting values, {cmd:udiff} first fits a constant-fluidity model using
+    {helpb mlogit}. A test of the unidiff model against the constant-fluidity
     model is included in the output (as an LR test or a Wald test, depending on
     context).
 
@@ -439,25 +449,25 @@
     {p_end}
 {p2col : {cmd:e(ibaseout)}}index of the base outcome
     {p_end}
-{p2col : {cmd:e(k_layer)}}number of layers
+{p2col : {cmd:e(k_unidiff)}}number of unidiff components
     {p_end}
 {p2col : {cmd:e(k_eform)}}number of equations to be affected by the {cmd:eform} option
     {p_end}
 
 {p2col 5 22 26 2: Macros}{p_end}
-{p2col : {cmd:e(layer)}}names of layer variables (if case of a single layer)
+{p2col : {cmd:e(layer)}}names of layer variables (if single unidiff component)
     {p_end}
-{p2col : {cmd:e(layer1)}}names of layer 1 variables (in case of multiple layers)
+{p2col : {cmd:e(layer1)}}names of layer variables of 1st unidiff component
     {p_end}
-{p2col : {cmd:e(layer2)}}names of layer 2 variables (in case of multiple layers)
+{p2col : {cmd:e(layer2)}}names of layer variables of 2nd unidiff component
     {p_end}
 {p2col : ...}
     {p_end}
-{p2col : {cmd:e(xvars)}}names of independent variables (if case of a single layer).
+{p2col : {cmd:e(xvars)}}names of independent variables (if single unidiff component)
     {p_end}
-{p2col : {cmd:e(xvars1)}}names of layer 1 independent variables  (in case of multiple layers)
+{p2col : {cmd:e(xvars1)}}names of independent variables of 1st unidiff component
     {p_end}
-{p2col : {cmd:e(xvars2)}}names of layer 2 independent variables (in case of multiple layers)
+{p2col : {cmd:e(xvars2)}}names of independent variables of 2nd unidiff component
     {p_end}
 {p2col : ...}
     {p_end}

@@ -1,14 +1,14 @@
-*! version 1.1.0  19aug2019  Ben Jann & Simon Seiler
+*! version 1.1.1  20aug2019  Ben Jann & Simon Seiler
 
 program udiff_lf
     version 11
     
     // collect information
-    local nout    $UDIFF_nout
-    local olist   $UDIFF_out
-    local ibase   $UDIFF_ibase
-    local nlayer  $UDIFF_nlayer
-    forv j = 1/`nlayer' {
+    local nout     $UDIFF_nout
+    local olist    $UDIFF_out
+    local ibase    $UDIFF_ibase
+    local nunidiff $UDIFF_nunidiff
+    forv j = 1/`nunidiff' {
         local philist `philist' phi`j'
         forv i = 1/`nout' {
             if `i'==`ibase' continue
@@ -28,7 +28,7 @@ program udiff_lf
     forv i = 1/`nout' {
         if `i'==`ibase' continue
         qui replace `tmp' = `psi1_`i'' * exp(`phi1') if $ML_samp
-        forv j=2/`nlayer' {
+        forv j=2/`nunidiff' {
             qui replace `tmp' = `tmp' + `psi`j'_`i'' * exp(`phi`j'') if $ML_samp
         }
         qui replace `lnf' = `lnf' + exp(`theta`i'' + `tmp') if $ML_samp
@@ -40,7 +40,7 @@ program udiff_lf
             continue
         }
         qui replace `tmp' = `psi1_`i'' * exp(`phi1') if $ML_samp & $ML_y1==`out'
-        forv j=2/`nlayer' {
+        forv j=2/`nunidiff' {
             qui replace `tmp' = `tmp' + `psi`j'_`i'' * exp(`phi`j'') if $ML_samp & $ML_y1==`out'
         }
         qui replace `lnf' = `theta`i'' + `tmp' - ln(`lnf') if $ML_samp & $ML_y1==`out'

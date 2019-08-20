@@ -1,4 +1,4 @@
-*! version 1.1.0  19aug2019  Ben Jann & Simon Seiler
+*! version 1.1.1  20aug2019  Ben Jann & Simon Seiler
 
 program udiff, eclass
     version 11
@@ -36,8 +36,8 @@ program Estimate, eclass
             ALLequations eform                       ///
             *                                        ///
             ]
-    ParseVarlist `anything'         // returns depvar, xvars, xvars#, nlayer
-    ParseLayer `nlayer' `options'   // returns layer, layer#, options
+    ParseVarlist `anything'          // returns depvar, xvars, xvars#, nunidiff
+    ParseLayer `nunidiff' `options'  // returns layer, layer#, options
     local vceopt =  `:length local vce'      | ///
                     `:length local weight'   | ///
                     `:length local cluster'  | ///
@@ -80,7 +80,7 @@ program Estimate, eclass
     // - expand factor variables (so that terms can be matched after _rmcoll)
     local xvars
     local layer
-    forv i=1/`nlayer' {
+    forv i=1/`nunidiff' {
         fvexpand `xvars`i'' if `touse'
         local xvars`i' `r(varlist)'
         local xvars `xvars' `r(varlist)'
@@ -99,7 +99,7 @@ program Estimate, eclass
     local vlist `r(varlist)'
     local xvars
     gettoken depvar vlist : vlist
-    forv j=1/`nlayer' {
+    forv j=1/`nunidiff' {
         local n: list sizeof xvars`j'
         local xvars`j'
         forv i=1/`n' {
@@ -109,7 +109,7 @@ program Estimate, eclass
         }
     }
     local layer
-    forv j=1/`nlayer' {
+    forv j=1/`nunidiff' {
         local n: list sizeof layer`j'
         local layer`j'
         forv i=1/`n' {
@@ -161,7 +161,7 @@ program Estimate, eclass
             if `"`subpop'"'!="" local svyprefix `"svy, `subpop':"'
             else                local svyprefix "svy:"
         }
-        if "`noisily'"!="" di as txt _n "Constant mobility model"
+        if "`noisily'"!="" di as txt _n "Constant fluidity model"
         nobreak {
             local initconstr
             if `"`constraints'"'!="" { // => translate constraints for mlogit
@@ -171,12 +171,12 @@ program Estimate, eclass
                         constraint get `i'
                         if r(defined)==0 continue
                         local constr `"`r(contents)'"'
-                        if `nlayer'==1 {
+                        if `nunidiff'==1 {
                             if strpos(`"`constr'"', "`Phi'") continue
                         }
                         else {
                             local break
-                            forv j=1/`nlayer' {
+                            forv j=1/`nunidiff' {
                                 if strpos(`"`constr'"', "`Phi'`j'") {
                                     local break break
                                     continue, break
@@ -184,11 +184,11 @@ program Estimate, eclass
                             }
                             if "`break'"!="" continue
                         }
-                        if `nlayer'==1 {
+                        if `nunidiff'==1 {
                             local constr: subinstr local constr "`Psi'_" "", all
                         }
                         else {
-                            forv j=1/`nlayer' {
+                            forv j=1/`nunidiff' {
                                 local constr: subinstr local constr "`Psi'`j'_" "", all
                             }
                         }
@@ -216,10 +216,10 @@ program Estimate, eclass
         matrix `b0' = e(b)
         local lf0 = e(ll)
         if `lf0'<. {
-            local lf0opt = e(df_m) + (`nout' - 1) // #k
+            local lf0opt = e(rank)
             local lf0opt lf0(`lf0opt' `lf0')
         }
-        mata: udiff_b0("`b0'","`Psi'", "`Theta'", `ibase', `nlayer')
+        mata: udiff_b0("`b0'","`Psi'", "`Theta'", `ibase', `nunidiff')
         local init init(`b0') search(off)
     }
     else {
@@ -228,15 +228,15 @@ program Estimate, eclass
 
     // put equations together
     local eqnames
-    forv j=1/`nlayer' {
-        if (`nlayer'==1) local term `Phi'
-        else             local term `Phi'`j'
+    forv j=1/`nunidiff' {
+        if (`nunidiff'==1) local term `Phi'
+        else               local term `Phi'`j'
         local phi `phi' (`term': `depvar'=`layer`j'', nocons)
         local eqnames `eqnames' `term'
     }
-    forv j=1/`nlayer' {
-        if (`nlayer'==1) local term `Psi'
-        else             local term `Psi'`j'
+    forv j=1/`nunidiff' {
+        if (`nunidiff'==1) local term `Psi'
+        else               local term `Psi'`j'
         forval i = 1/`nout' {
             if `i' == `ibase' continue
             local val: word `i' of `out'
@@ -253,10 +253,10 @@ program Estimate, eclass
     
     // optimize
     nobreak {
-        global UDIFF_nout   `nout'
-        global UDIFF_out    `out'
-        global UDIFF_ibase  `ibase'
-        global UDIFF_nlayer `nlayer'
+        global UDIFF_nout     `nout'
+        global UDIFF_out      `out'
+        global UDIFF_ibase    `ibase'
+        global UDIFF_nunidiff `nunidiff'
         capture noisily break {
             ml model lf udiff_lf `phi' `psi' `theta' ///
                 if `touse' `wgt', maximize missing collinear `log' `lf0opt' /// 
@@ -265,15 +265,15 @@ program Estimate, eclass
         global UDIFF_nout
         global UDIFF_out
         global UDIFF_ibase
-        global UDIFF_nlayer
+        global UDIFF_nunidiff
         if _rc exit _rc
     }
 
     // returns
-    eret scalar k_eform   = e(k_eq)
-    eret scalar ibaseout  = `ibase'
-    eret scalar k_out     = `nout'
-    eret scalar k_layer   = `nlayer'
+    eret scalar k_eform    = e(k_eq)
+    eret scalar ibaseout   = `ibase'
+    eret scalar k_out      = `nout'
+    eret scalar k_unidiff  = `nunidiff'
     eret local predict    "udiff_p"
     eret local cmd        "udiff"
     eret local out        "`out'"
@@ -281,8 +281,8 @@ program Estimate, eclass
     eret local out_labels `"`out_labels'"'
     eret local eqnames    `"`eqnames'"'
     eret local controls   `"`controls'"'
-    forv j=1/`nlayer' {
-        if `nlayer'==1 {
+    forv j=1/`nunidiff' {
+        if `nunidiff'==1 {
             eret local layer      `"`layer`j''"'
             eret local indepvars  `"`xvars`j''"'
         }
@@ -323,14 +323,14 @@ program ParseVarlist
             local xvars `xvars' `varlist'
         }
     }
-    c_local xvars  `xvars'
-    c_local nlayer `i'
+    c_local xvars    `xvars'
+    c_local nunidiff `i'
 end
 
 program ParseLayer
-    gettoken nlayer options : 0
+    gettoken nunidiff options : 0
     local layers
-    forv i=1/`nlayer' {
+    forv i=1/`nunidiff' {
         local 0 `", `options'"'
         syntax, layer(varlist numeric fv) [ * ]
         c_local layer`i' `"`layer'"'
@@ -347,7 +347,7 @@ end
 
 program Display
     syntax [, ALLequations noHeader * ]
-    if "`allequations'"=="" local first neq(`e(k_layer)')
+    if "`allequations'"=="" local first neq(`e(k_unidiff)')
     if "`header'"=="" {
         _coef_table_header
         if "`allequations'"!="" {
@@ -372,7 +372,7 @@ mata:
 mata set matastrict on
 
 void udiff_b0(string scalar b, string scalar psi, string scalar theta,
-    real scalar ibase, real scalar nlayer)
+    real scalar ibase, real scalar nunidiff)
 {
     real scalar    i, j, k, l, sn, r
     string scalar  eq, eq0
@@ -380,8 +380,8 @@ void udiff_b0(string scalar b, string scalar psi, string scalar theta,
     real colvector p
     real rowvector R
 
-    R = J(1, nlayer, .)
-    for (l=1; l<=nlayer; l++) {
+    R = J(1, nunidiff, .)
+    for (l=1; l<=nunidiff; l++) {
         R[l] = length(tokens(st_local("xvars"+strofreal(l))))
     }
     cstripe = st_matrixcolstripe(b)
@@ -403,7 +403,7 @@ void udiff_b0(string scalar b, string scalar psi, string scalar theta,
         }
         j++
         if (j>r) {
-            if (l<nlayer) {
+            if (l<nunidiff) {
                 l++
                 r = r + R[l]
             }
@@ -412,7 +412,7 @@ void udiff_b0(string scalar b, string scalar psi, string scalar theta,
                 continue
             }
         }
-        cstripe[i,1] = psi + (nlayer==1 ? "" : strofreal(l))  + "_" + eq
+        cstripe[i,1] = psi + (nunidiff==1 ? "" : strofreal(l))  + "_" + eq
     }
     st_matrix(b, select(st_matrix(b)', p)')
     st_matrixcolstripe(b, select(cstripe, p))

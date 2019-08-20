@@ -1,4 +1,4 @@
-*! version 1.1.0  19aug2019  Ben Jann & Simon Seiler
+*! version 1.1.1  20aug2019  Ben Jann & Simon Seiler
 
 program define udiff_p
     if "`e(cmd)'" != "udiff" {
@@ -95,24 +95,24 @@ program define udiff_p
         local nout = e(k_out)
         local out `"`e(out)'"'
         local ibase = e(ibaseout)
-        local nlayer = e(k_layer)
+        local nunidiff = e(k_unidiff)
         local vlist
         foreach var of local varlist {
             gettoken vtyp typlist : typlist
             local vlist `vlist' `vtyp' `var'
         }
         nobreak {
-            global UDIFF_nout   `nout'
-            global UDIFF_out    `out'
-            global UDIFF_ibase  `ibase'
-            global UDIFF_nlayer `nlayer'
+            global UDIFF_nout     `nout'
+            global UDIFF_out      `out'
+            global UDIFF_ibase    `ibase'
+            global UDIFF_nunidiff `nunidiff'
             capture noisily break {
                 ml score `vlist' `if' `in', `eqoptnm'
             }
             global UDIFF_nout
             global UDIFF_out
             global UDIFF_ibase
-            global UDIFF_nlayer
+            global UDIFF_nunidiff
             if _rc exit _rc
             sreturn clear
             exit
@@ -125,21 +125,21 @@ program define udiff_p
     quietly {
         gen double `den' = 1 if `touse'
         local nout = e(k_out)
-        local nlayer = e(k_layer)
+        local nunidiff = e(k_unidiff)
         local j 0
         forval i = 1/`nout' {
             if `i' == e(ibaseout) continue
             local ++j
             gen double `xb' = 0 if `touse'
-            forv l=1/`nlayer' {
+            forv l=1/`nunidiff' {
                 _predict double `phi' if `touse', eq(#`l') xb
                 replace `phi' = exp(`phi') if `touse'
-                local eqno = `nlayer' + (`l'-1)*(`nout'-1) + `j'
+                local eqno = `nunidiff' + (`l'-1)*(`nout'-1) + `j'
                 _predict double `psi' if `touse', eq(#`eqno') xb
                 replace `xb' = `xb' + `phi'*`psi' if `touse'
                 drop `phi' `psi'
             }
-            local eqno = `nlayer' + `nlayer'*(`nout'-1) + `j'
+            local eqno = `nunidiff' + `nunidiff'*(`nout'-1) + `j'
             _predict double `theta' if `touse', eq(#`eqno') xb
             replace `xb' = `xb' + `theta' if `touse'
             drop `theta'
