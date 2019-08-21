@@ -1,4 +1,4 @@
-*! version 1.1.1  20aug2019  Ben Jann & Simon Seiler
+*! version 1.1.2  21aug2019  Ben Jann & Simon Seiler
 
 program udiff, eclass
     version 11
@@ -86,7 +86,8 @@ program Estimate, eclass
         local xvars `xvars' `r(varlist)'
         fvexpand `layer`i'' if `touse'
         local layer`i' `r(varlist)'
-        local layer `layer' `r(varlist)'
+        local layer`i': list uniq layer`i'
+        local layer: list layer | layer`i'
     }
     if `"`controls'"'!="" {
         fvexpand `controls' if `touse'
@@ -108,14 +109,17 @@ program Estimate, eclass
             local xvars `xvars' `term'
         }
     }
+    local vlist0 `layer'
     local layer
-    forv j=1/`nunidiff' {
-        local n: list sizeof layer`j'
-        local layer`j'
-        forv i=1/`n' {
-            gettoken term vlist : vlist
-            local layer`j' `layer`j'' `term'
-            local layer `layer' `term'
+    local n: list sizeof vlist0
+    forv i=1/`n' {
+        gettoken term0 vlist0 : vlist0
+        gettoken term vlist : vlist
+        local layer `layer' `term'
+        if "`term'"!="`term0'" {
+            forv j=1/`nunidiff' {
+                local layer`j': subinstr local layer`j' "`term0'" "`term'", word
+            }
         }
     }
     local n: list sizeof controls
@@ -124,7 +128,7 @@ program Estimate, eclass
         gettoken term vlist : vlist
         local controls `controls' `term'
     }
-
+macro dir
     // - process info on outcomes
     tempname OUT
     matrix `OUT' = r(out)
