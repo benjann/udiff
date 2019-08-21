@@ -96,6 +96,8 @@ program Estimate, eclass
     // - run _rmcoll
     _rmcoll `depvar' `xvars' `layer' `controls' `wgt' if `touse', ///
             `constant' noskipline mlogit `baseoutcome' expand
+di "`depvar' `xvars' `layer' `controls' `wgt'"
+di `r(varlist)'
     // - rebuild variable lists
     local vlist `r(varlist)'
     local xvars
@@ -128,7 +130,7 @@ program Estimate, eclass
         gettoken term vlist : vlist
         local controls `controls' `term'
     }
-macro dir
+
     // - process info on outcomes
     tempname OUT
     matrix `OUT' = r(out)
