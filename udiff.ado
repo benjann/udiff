@@ -93,16 +93,16 @@ program Estimate, eclass
         fvexpand `controls' if `touse'
         local controls `r(varlist)'
     }
-    local allvars `depvar' `xvars' `layer' `controls'
-    local allvarsuniq: list uniq allvars
-    if `: list sizeof allvars'!=`: list sizeof allvarsuniq' {
+    local vlist `depvar' `xvars' `layer' `controls'
+    local vlist0: list uniq vlist
+    if `: list sizeof vlist'!=`: list sizeof vlist0' {
         di as err "inconsistent list of variables; xvars and controls must be" ///
             " unique; layer must not contain xvars or controls"
         exit 198
     }
     
     // - run _rmcoll
-    _rmcoll `allvars' `wgt' if `touse', `constant' noskipline mlogit `baseoutcome' expand
+    _rmcoll `vlist' `wgt' if `touse', `constant' noskipline mlogit `baseoutcome' expand
     // - rebuild variable lists
     local vlist `r(varlist)'
     local xvars
