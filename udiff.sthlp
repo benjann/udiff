@@ -80,7 +80,7 @@
 
 {pstd}
     {cmd:udiff} estimates parameters of the so-called unidiff model (Erikson
-    and Goldthorpe 1992), also known as the log multiplicative layer effects
+    and Goldthorpe 1992), also known as the log-multiplicative layer effect
     model (Xie 1992), which is often used to study differences in
     intergenerational class mobility between birth cohorts or countries.
 
