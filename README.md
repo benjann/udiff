@@ -1,3 +1,2 @@
 # udiff
-Stata command to estimate an unidiff model from individual-level data
-
+Stata module to estimate the generalized unidiff model for individual-level data
