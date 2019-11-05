@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.1  20aug2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.2  05nov2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -15,14 +15,14 @@
 
 {title:Title}
 
-{pstd}{hi:udiff} {hline 2}  Command to estimate an unidiff model from individual-level data
+{pstd}{hi:udiff} {hline 2}  Generalized unidiff model for individual-level data
 
 
 {marker syntax}{...}
 {title:Syntax}
 
 {pstd}
-    Unidiff model
+    Basic unidiff model
 
 {p 8 15 2}
     {cmd:udiff} {depvar} {help varlist:{it:xvars}} {ifin} {weight}{cmd:,} {opth layer(varlist)}
@@ -56,8 +56,6 @@
    {opt jack:knife}{p_end}
 {synopt :{opt r:obust}}synonym for {cmd:vce(robust)}{p_end}
 {synopt :{opt cl:uster(clustvar)}}synonym for {cmd:vce(cluster} {it:clustvar}{cmd:)}{p_end}
-{synopt :{opt svy}}take account of survey design as set by {helpb svyset}{p_end}
-{synopt :{opth sub:pop(varname)}}compute estimates for a subpopulation; requires {cmd:svy}{p_end}
 
 {syntab :Reporting}
 {synopt :{opt l:evel(#)}}set confidence level; default is {cmd:level(95)}{p_end}
@@ -70,9 +68,9 @@
 
 {syntab :Maximization}
 {synopt :{it:{help maximize:maximize_options}}}maximization options{p_end}
-{synopt :{opt initopt:s(options)}}options to be passed through to initial {helpb mlogit}{p_end}
 {synoptline}
 {p 4 6 2}{it:xvars}, {cmd:layer()}, and {cmd:controls()} may contain factor variables; see {help fvvarlist}.{p_end}
+{p 4 6 2}{helpb svy} and {helpb mi estimate} are supported; see {help prefix}.{p_end}
 {p 4 6 2}{cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed; see help {help weight}.{p_end}
 {p 4 6 2}{helpb udiff##postest:predict} and other postestimation commands are available after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
 
@@ -89,18 +87,19 @@
 {pstd}
     The original unidiff model has been expressed as a log-linear model of cell
     frequencies in a three-way contingency table (origin by destination by
-    cohort or country). The model, however, can also be expressed at the individual-level
-    as a type of a multinomial logit regression. {cmd:udiff} estimates such a
-    re-expressed unidiff model for individual-level data. For details see
+    cohort or country). The model, however, can also be expressed at the 
+    individual-level (similar to a multinomial logit model). {cmd:udiff} estimates such a
+    re-expressed unidiff model for individual-level data. Furthermore, it generalized the
+    model to allow for multiple layers and non-categorical predictors. For details see
     {help udiff##methods:Methods and Formulas} below. For an implementation
-    of the log-linear unidiff model for aggregate data see Pisati (2000).
+    of the classic log-linear unidiff model for aggregate data see Pisati (2000).
 
 {pstd}
     {it:depvar} is the (categorical) destination variable (e.g. class of
     respondent); {it:xvars} specifies the origin variable(s) (e.g. class of
     respondent's parents). Typically, {it:xvars} only contains a single
     categorical variable specified as {cmd:i.}{it:varname}, although multiple
-    or continuous origin variables are allowed.
+    variables as well as continuous variables are allowed.
 
 
 {marker options}{...}
@@ -157,16 +156,6 @@
     {opt cluster(clustvar)} is a synonym for {cmd:vce(cluster} {it:clustvar}{cmd:)}.
 
 {phang}
-    {opt svy} indicates that survey-design settings set by {helpb svyset} should
-    be taken into account. {cmd:svy} may not be specified with {cmd:vce()} or weights.
-
-{phang}
-    {opth subpop(varname)} specifies that estimates be computed for the subpopulation defined
-    by {it:varname}!=0. Typically, {it:varname} = 1 defines the subpopulation, and {it:varname} = 0
-    indicates observations not belonging to the subpopulation. This option
-    requires the {cmd:svy} option.
-
-{phang}
     {opt level(#)} specifies the confidence level, as a percentage, for
     confidence intervals. The default is {cmd:level(95)}
     or as set by {helpb set level}.
@@ -202,12 +191,6 @@
     {it:maximize_options} are maximization options such as {cmd:iterate()} or 
     {cmd:difficult}. See {helpb maximize:[R] maximize}. These options will only 
     be applied to the unidiff model, but not to the initial constant-fluidity model.
-
-{marker initopts}{...}
-{phang}
-    {opt initopts(options)} specifies options to be passed through to the 
-    {helpb mlogit} call that is used to estimate the initial 
-    constant-fluidity model; see {helpb mlogit:[R] mlogit}.
 
 
 {marker postest}{...}
@@ -309,7 +292,7 @@
     commands would do:
 
         . {stata "constraint 1 [Psi_3]: 1.father"}
-        . {stata udiff son ib2.father [fweight=obs], layer(i.country) constraints(1)}
+        . {stata udiff son ib2.father [fweight=obs], layer(i.country) allequations constraints(1)}
 
 
 {marker methods}{...}
@@ -372,10 +355,10 @@
     Furthermore, the unidiff model is equivalent to a multinomial logit written
     as
 
-        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + exp(Z'{it:phi}) * X'{it:psi}(y)) / Q
+        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + exp(Z'{it:phi}) * X'{it:psi}(y)) / D
 
 {pstd}
-    where Q is the sum of the expression in the numerator across all levels of
+    where D is the sum of the expression in the numerator across all levels of
     Y, and W is equal to Z augmented by a constant, i.e. W = (1,Z')' (again, X
     and Z are treated as factor variables, i.e. think of X and Z as vectors
     of dummy variables). {it:theta}(y), {it:phi},
@@ -403,7 +386,7 @@
     written as:
 
 {p 8 8 2}Pr(Y = y| X1, Z1, X2, Z2, C) ={p_end}
-{p 12 12 2}exp(W'{it:theta}(y) + exp(Z1'{it:phi1}) * X1'{it:psi1}(y) + exp(Z2'{it:phi2}) * X2'{it:psi2}(y)) / Q{p_end}
+{p 12 12 2}exp(W'{it:theta}(y) + exp(Z1'{it:phi1}) * X1'{it:psi1}(y) + exp(Z2'{it:phi2}) * X2'{it:psi2}(y)) / D{p_end}
 
 {pstd}
     where W = (1, Z1', X1', Z2', X2', C')'. The model can be extended analogously 
@@ -413,10 +396,10 @@
 
 {pstd}
     {cmd:udiff} estimates the unidiff model using {helpb ml}. To obtain good
-    starting values, {cmd:udiff} first fits a constant-fluidity model using
-    {helpb mlogit}. A test of the unidiff model against the constant-fluidity
-    model is included in the output (as an LR test or a Wald test, depending on
-    context).
+    starting values, {cmd:udiff} first fits a constant-fluidity model (which is 
+    equivalent to a standard {helpb mlogit} model). A test of the unidiff model
+    against the constant-fluidity model is included in the output (as an LR
+    test or a Wald test, depending on context).
 
 {pstd}
     As usual in a multinomial logit, the coefficients are set to zero for one
@@ -514,7 +497,7 @@
     Thanks for citing this software as follows:
 
 {pmore}
-    Jann, B., S. Seiler. 2019. udiff: Stata module to estimate an unidiff model 
-    from individual-level data. Available from
+    Jann, B., S. Seiler. 2019. udiff: Stata module to estimate the generalized
+    unidiff model for individual-level data. Available from
     {browse "http://github.com/benjann/udiff"}.
 

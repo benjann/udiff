@@ -1,6 +1,6 @@
-*! version 1.1.2  21aug2019  Ben Jann & Simon Seiler
+*! version 1.1.3  05nov2019  Ben Jann & Simon Seiler
 
-program udiff, eclass
+program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
     if replay() {
         if "`e(cmd)'" != "udiff" error 301
@@ -27,15 +27,16 @@ program Estimate, eclass
             /// estimation
             vce(passthru)                            ///
             CLuster(passthru) Robust                 ///
-            svy SUBpop(passthru)                     ///
             from(passthru)                           ///
             CONSTRaints(numlist int <=1 <=1999)      ///
-            INITOPTs(str asis)                       ///
+            lfado                           /// undocumented; for certification
             /// display
             NOIsily noLOg noHeader                   ///
             ALLequations eform                       ///
             *                                        ///
             ]
+    if "`lfado'"=="" local lfspec lf2 udiff_lf2()
+    else             local lfspec lf  udiff_lf
     ParseVarlist `anything'          // returns depvar, xvars, xvars#, nunidiff
     ParseLayer `nunidiff' `options'  // returns layer, layer#, options
     local vceopt =  `:length local vce'      | ///
@@ -67,7 +68,6 @@ program Estimate, eclass
     // mark sample
     marksample touse
     markout `touse' `depvar' `xvars' `layer' `controls' `clustvar'
-    if "`svy'"!="" svymarkout `touse'
     
     // check depvar
     capt assert (`depvar'==abs(int(`depvar'))) if `touse'
@@ -100,9 +100,17 @@ program Estimate, eclass
             " unique; layer must not contain xvars or controls"
         exit 198
     }
-    
     // - run _rmcoll
     _rmcoll `vlist' `wgt' if `touse', `constant' noskipline mlogit `baseoutcome' expand
+    // - get coefficients and ll of empty model
+    if `"`from'"'=="" {
+        if "`constant'"=="" {
+            tempname b0
+            matrix `b0' = r(b0)
+            local lf0 = r(ll_0)
+        }
+        else  local lf0 = .
+    }
     // - rebuild variable lists
     local vlist `r(varlist)'
     local xvars
@@ -135,7 +143,6 @@ program Estimate, eclass
         gettoken term vlist : vlist
         local controls `controls' `term'
     }
-
     // - process info on outcomes
     tempname OUT
     matrix `OUT' = r(out)
@@ -156,101 +163,30 @@ program Estimate, eclass
             local out_labels `"`out_labels'`"`lbl'"' "'
         }
         local out_labels: list clean out_labels
-        tempvar depvar2
-        qui gen `: type `depvar'' `depvar2' = `depvar' if `touse'
-    }
-    else local depvar2 `depvar'
-    
-    // unidiff equation names
-    local Phi "Phi"
-    local Psi "Psi"
-    local Theta "Theta"
-    
-    // starting values
-    if `"`from'"'=="" {
-        if "`svy'"!="" {
-            if `"`subpop'"'!="" local svyprefix `"svy, `subpop':"'
-            else                local svyprefix "svy:"
-        }
-        if "`noisily'"!="" di as txt _n "Constant fluidity model"
-        nobreak {
-            local initconstr
-            if `"`constraints'"'!="" { // => translate constraints for mlogit
-                InitoptsHasConstraint, `initopts'
-                if `inithasconstr'==0 {
-                    foreach i of local constraints {
-                        constraint get `i'
-                        if r(defined)==0 continue
-                        local constr `"`r(contents)'"'
-                        if `nunidiff'==1 {
-                            if strpos(`"`constr'"', "`Phi'") continue
-                        }
-                        else {
-                            local break
-                            forv j=1/`nunidiff' {
-                                if strpos(`"`constr'"', "`Phi'`j'") {
-                                    local break break
-                                    continue, break
-                                }
-                            }
-                            if "`break'"!="" continue
-                        }
-                        if `nunidiff'==1 {
-                            local constr: subinstr local constr "`Psi'_" "", all
-                        }
-                        else {
-                            forv j=1/`nunidiff' {
-                                local constr: subinstr local constr "`Psi'`j'_" "", all
-                            }
-                        }
-                        local constr: subinstr local constr "`Theta'_" "", all
-                        constraint free
-                        local j = r(free)
-                        constraint `j' `constr'
-                        local initconstr `initconstr' `j'
-                    }
-                    local initopts `initopts' constraints(`initconstr')
-                }
-            }
-            capture `noisily' break {
-                `svyprefix' mlogit `depvar2' `xvars' `layer' `controls' ///
-                    `wgt' if `touse', collinear `baseoutcome' `constant' ///
-                    `vce' `initopts'
-            }
-            local rc = _rc
-            if `"`initconstr'"'!="" {
-                constraint drop `initconstr'
-            }
-            if `rc' exit `rc'
-        }
-        tempname b0
-        matrix `b0' = e(b)
-        local lf0 = e(ll)
-        if `lf0'<. {
-            local lf0opt = e(rank)
-            local lf0opt lf0(`lf0opt' `lf0')
-        }
-        mata: udiff_b0("`b0'","`Psi'", "`Theta'", `ibase', `nunidiff')
-        local init init(`b0') search(off)
-    }
-    else {
-        local init `"init(`from')"'
     }
 
     // put equations together
+    local Phi "Phi"
+    local Psi "Psi"
+    local Theta "Theta"
     local eqnames
     forv j=1/`nunidiff' {
+        if (`j'==1) local thedepvar "`depvar'="
+        else        local thedepvar
         if (`nunidiff'==1) local term `Phi'
         else               local term `Phi'`j'
-        local phi `phi' (`term': `depvar'=`layer`j'', nocons)
+        local phi `phi' (`term': `thedepvar'`layer`j'', nocons)
         local eqnames `eqnames' `term'
     }
+    local thedepvar "`depvar'="
     forv j=1/`nunidiff' {
         if (`nunidiff'==1) local term `Psi'
         else               local term `Psi'`j'
         forval i = 1/`nout' {
             if `i' == `ibase' continue
             local val: word `i' of `out'
+            local psi0 `psi0' (`term'_`val': `thedepvar'`xvars`j'', nocons)
+            local thedepvar
             local psi `psi' (`term'_`val': `xvars`j'', nocons)
             local eqnames `eqnames' `term'_`val'
         }
@@ -259,20 +195,63 @@ program Estimate, eclass
         if `i' == `ibase' continue
         local val: word `i' of `out'
         local theta `theta' (`Theta'_`val': `layer' `controls', `constant')
-        local eqnames `eqnames' `Theta'_`val'
+        local thetalist `thetalist' `Theta'_`val'
+    }
+    local eqnames `eqnames' `thetalist'
+    
+    // starting values (constant fluidity model)
+    if `"`from'"'=="" {
+        if "`noisily'"!="" di as txt _n "Constant fluidity model"
+        else if "`log'"=="" di as txt _n "fitting constant fluidity model ..." _c
+        mat coleq `b0' = `thetalist'
+        local initopt init(`b0') 
+        if !missing(`lf0') {
+                local initopt `initopt' lf0(`=`nout'-1' `lf0')
+        }
+        nobreak {
+            global UDIFF_mtype    0
+            global UDIFF_nout     `nout'
+            global UDIFF_out      `out'
+            global UDIFF_ibase    `ibase'
+            global UDIFF_nunidiff `nunidiff'
+            capture `noisily' break {
+                ml model `lfspec' `psi0' `theta' if `touse' `wgt', ///
+                   `initopt' `mlopts' `log' search(off) collinear ///
+                    constraints(`constraints') maximize missing
+            }
+            global UDIFF_mtype
+            global UDIFF_nout
+            global UDIFF_out
+            global UDIFF_ibase
+            global UDIFF_nunidiff
+            if _rc exit _rc
+        }
+        if "`noisily'"!="" ml display
+        else if "`log'"=="" di as txt " done"
+        matrix `b0' = e(b)
+        local lf0 = e(ll)
+        local initopt init(`b0') 
+        if !missing(`lf0') {
+            local initopt `initopt' lf0(`e(rank)' `lf0')
+        }
+    }
+    else {
+        local initopt `"init(`from')"'
     }
     
-    // optimize
+    // estimate unidiff model
     nobreak {
+        global UDIFF_mtype    1
         global UDIFF_nout     `nout'
         global UDIFF_out      `out'
         global UDIFF_ibase    `ibase'
         global UDIFF_nunidiff `nunidiff'
         capture noisily break {
-            ml model lf udiff_lf `phi' `psi' `theta' ///
-                if `touse' `wgt', maximize missing collinear `log' `lf0opt' /// 
-                constraints(`constraints') `mlopts' `init' `svy' `subpop'
+            ml model `lfspec' `phi' `psi' `theta' if `touse' `wgt', ///
+                `initopt' `mlopts' `log' search(off) collinear ///
+                constraints(`constraints') maximize missing
         }
+        global UDIFF_mtype
         global UDIFF_nout
         global UDIFF_out
         global UDIFF_ibase
@@ -351,11 +330,6 @@ program ParseLayer
     c_local options `options'
 end
 
-program InitoptsHasConstraint
-    syntax [, Constraints(passthru) * ]
-    c_local inithasconstr = `"`constraints'"'!=""
-end
-
 program Display
     syntax [, ALLequations noHeader * ]
     if "`allequations'"=="" local first neq(`e(k_unidiff)')
@@ -376,58 +350,5 @@ program Display
     }
     di ""
     ml display, noheader `first' `options'
-end
-
-version 11
-mata:
-mata set matastrict on
-
-void udiff_b0(string scalar b, string scalar psi, string scalar theta,
-    real scalar ibase, real scalar nunidiff)
-{
-    real scalar    i, j, k, l, sn, r
-    string scalar  eq, eq0
-    string matrix  cstripe
-    real colvector p
-    real rowvector R
-
-    R = J(1, nunidiff, .)
-    for (l=1; l<=nunidiff; l++) {
-        R[l] = length(tokens(st_local("xvars"+strofreal(l))))
-    }
-    cstripe = st_matrixcolstripe(b)
-    n = rows(cstripe)
-    p = J(n,1,1)
-    k = 0; eq0 = ""
-    for (i=1; i<=n; i++) {
-        eq = cstripe[i,1]
-        if (eq!=eq0) {
-            k++
-            j = 0
-            l = 1
-            r = R[l]
-            eq0 = eq
-        }
-        if (k==ibase) {
-            p[i] = 0
-            continue
-        }
-        j++
-        if (j>r) {
-            if (l<nunidiff) {
-                l++
-                r = r + R[l]
-            }
-            else {
-                cstripe[i,1] = theta + "_" + eq
-                continue
-            }
-        }
-        cstripe[i,1] = psi + (nunidiff==1 ? "" : strofreal(l))  + "_" + eq
-    }
-    st_matrix(b, select(st_matrix(b)', p)')
-    st_matrixcolstripe(b, select(cstripe, p))
-}
-
 end
 
