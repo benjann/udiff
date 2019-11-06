@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.2  05nov2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.3  06nov2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -389,7 +389,7 @@
 {p 12 12 2}exp(W'{it:theta}(y) + exp(Z1'{it:phi1}) * X1'{it:psi1}(y) + exp(Z2'{it:phi2}) * X2'{it:psi2}(y)) / D{p_end}
 
 {pstd}
-    where W = (1, Z1', X1', Z2', X2', C')'. The model can be extended analogously 
+    where W = (1, Z1', Z2', C')'. The model can be extended analogously 
     to accommodate more than two unidiff components.
 
 {dlgtab:Estimation}
