@@ -1,4 +1,4 @@
-*! version 1.1.3  05nov2019  Ben Jann & Simon Seiler
+*! version 1.1.4  06nov2019  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -228,12 +228,7 @@ program Estimate, eclass
         }
         if "`noisily'"!="" ml display
         else if "`log'"=="" di as txt " done"
-        matrix `b0' = e(b)
-        local lf0 = e(ll)
-        local initopt init(`b0') 
-        if !missing(`lf0') {
-            local initopt `initopt' lf0(`e(rank)' `lf0')
-        }
+        local initopt continue
     }
     else {
         local initopt `"init(`from')"'
