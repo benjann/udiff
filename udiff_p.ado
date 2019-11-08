@@ -1,4 +1,4 @@
-*! version 1.1.1  20aug2019  Ben Jann & Simon Seiler
+*! version 1.1.2  07nov2019  Ben Jann & Simon Seiler
 
 program define udiff_p
     if "`e(cmd)'" != "udiff" {
@@ -90,6 +90,9 @@ program define udiff_p
         exit
     }
     
+    // type of model
+    local cfonly `"`e(cfonly)'"'
+    
     // scores
     if `"`type'"' == "scores" {
         local nout = e(k_out)
@@ -102,6 +105,7 @@ program define udiff_p
             local vlist `vlist' `vtyp' `var'
         }
         nobreak {
+            global UDIFF_mtype    = (`"`cfonly'"'=="")
             global UDIFF_nout     `nout'
             global UDIFF_out      `out'
             global UDIFF_ibase    `ibase'
@@ -109,6 +113,7 @@ program define udiff_p
             capture noisily break {
                 ml score `vlist' `if' `in', `eqoptnm'
             }
+            global UDIFF_mtype
             global UDIFF_nout
             global UDIFF_out
             global UDIFF_ibase
@@ -132,14 +137,23 @@ program define udiff_p
             local ++j
             gen double `xb' = 0 if `touse'
             forv l=1/`nunidiff' {
-                _predict double `phi' if `touse', eq(#`l') xb
-                replace `phi' = exp(`phi') if `touse'
-                local eqno = `nunidiff' + (`l'-1)*(`nout'-1) + `j'
-                _predict double `psi' if `touse', eq(#`eqno') xb
-                replace `xb' = `xb' + `phi'*`psi' if `touse'
-                drop `phi' `psi'
+                if `"`cfonly'"'!="" {
+                    local eqno = (`l'-1)*(`nout'-1) + `j'
+                    _predict double `psi' if `touse', eq(#`eqno') xb
+                    replace `xb' = `xb' + `psi' if `touse'
+                }
+                else {
+                    _predict double `phi' if `touse', eq(#`l') xb
+                    replace `phi' = exp(`phi') if `touse'
+                    local eqno = `nunidiff' + (`l'-1)*(`nout'-1) + `j'
+                    _predict double `psi' if `touse', eq(#`eqno') xb
+                    replace `xb' = `xb' + `phi'*`psi' if `touse'
+                    drop `phi'
+                }
+                drop `psi'
             }
-            local eqno = `nunidiff' + `nunidiff'*(`nout'-1) + `j'
+            if `"`cfonly'"'!="" local eqno = `nunidiff'*(`nout'-1) + `j'
+            else   local eqno = `nunidiff' + `nunidiff'*(`nout'-1) + `j'
             _predict double `theta' if `touse', eq(#`eqno') xb
             replace `xb' = `xb' + `theta' if `touse'
             drop `theta'

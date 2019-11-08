@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.3  06nov2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.4  08nov2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -21,34 +21,32 @@
 {marker syntax}{...}
 {title:Syntax}
 
-{pstd}
-    Basic unidiff model
-
 {p 8 15 2}
-    {cmd:udiff} {depvar} {help varlist:{it:xvars}} {ifin} {weight}{cmd:,} {opth layer(varlist)}
-    [ {it:options} ]
+    {cmd:udiff} {depvar} {it:termlist} [{help varlist:{it:controlvars}}] {ifin} {weight} [{cmd:,} 
+    {help udiff##opts:{it:options}} ]
 
 {pstd}
-    Generalized unidiff model
+    where {it:termlist} is a space-separated list of one or more unidiff terms specified as
 
-{p 8 15 2}
-    {cmd:udiff} {depvar}
-    {cmd:(}{help varlist:{it:xvars1}}{cmd:)} 
-    {cmd:(}{help varlist:{it:xvars2}}{cmd:)} [ ... ] 
-    {ifin} {weight}{cmd:,}
-    {cmd:layer(}{help varlist:{it:varlist1}}{cmd:)}
-    {cmd:layer(}{help varlist:{it:varlist2}}{cmd:)}
-    [ ...  {it:options} ]
+        {cmd:(}{help varlist:{it:xvars}} {cmd:<-} {help varlist:{it:layervars}}{cmd:)}
+
+{pstd}
+    or, equivalently, {cmd:(}{help varlist:{it:layervars}} {cmd:->} {help varlist:{it:xvars}}{cmd:)};
+    the parentheses are only required if multiple unidiff terms or
+    {it:controlvars} are specified. {it:xvars} must be unique across
+    unidiff terms, {it:layervars} may be repeated. {it:xvars}, {it:layervars},
+    and {it:controlvars} may contain factor variables; see {help fvvarlist}. 
+
 
 {synoptset 22 tabbed}{...}
+{marker opts}{...}
 {synopthdr}
 {synoptline}
 {syntab :Main}
-{synopt :{opth layer(varlist)}}layer variable(s); this option is required{p_end}
-{synopt :{opth cont:rols(varlist)}}constant-effect control variables{p_end}
+{synopt :{opt cf:only}}estimate constant-fluidity model instead of unidiff model{p_end}
+{synopt :{opth constr:aints(numlist)}}apply specified linear constraints{p_end}
 {synopt :{opt b:aseoutcome(#)}}value of {depvar} that will be the base outcome{p_end}
 {synopt :{opt nocons:tant}}suppress constant term{p_end}
-{synopt :{opth constr:aints(numlist)}}apply specified linear constraints{p_end}
 
 {syntab :SE/Robust}
 {synopt :{opth vce(vcetype)}}{it:vcetype} may be {opt oim},
@@ -69,7 +67,6 @@
 {syntab :Maximization}
 {synopt :{it:{help maximize:maximize_options}}}maximization options{p_end}
 {synoptline}
-{p 4 6 2}{it:xvars}, {cmd:layer()}, and {cmd:controls()} may contain factor variables; see {help fvvarlist}.{p_end}
 {p 4 6 2}{helpb svy} and {helpb mi estimate} are supported; see {help prefix}.{p_end}
 {p 4 6 2}{cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed; see help {help weight}.{p_end}
 {p 4 6 2}{helpb udiff##postest:predict} and other postestimation commands are available after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
@@ -96,38 +93,45 @@
 
 {pstd}
     {it:depvar} is the (categorical) destination variable (e.g. class of
-    respondent); {it:xvars} specifies the origin variable(s) (e.g. class of
-    respondent's parents). Typically, {it:xvars} only contains a single
+    respondent).
+
+{pstd}
+    {it:xvars} specifies the origin variable(s) (e.g. class of
+    respondent's parents). Typically, {it:xvars} is a single
     categorical variable specified as {cmd:i.}{it:varname}, although multiple
-    variables as well as continuous variables are allowed.
+    variables as well as continuous variables are allowed. 
+
+{pstd}
+    {it:layervars} specifies the layer variable(s) to be interacted with
+    {it:xvars}. Typically, {it:layervars} is a single categorical variable
+    specified as {cmd:i.}{it:varname} (e.g. countries or birth-cohort 
+    categories), although multiple variables as well as continuous variables
+    are allowed. For example, specify {cmd:(}{it:xvars} {cmd:<-} 
+    {cmd:c.cohort##c.cohort}{cmd:)} to model the unidiff scaling factor
+    as a quadratic function of variable {cmd:cohort}. Likewise, if your data
+    contains information on countries and birth cohorts, you could type 
+    {cmd:(}{it:xvars} {cmd:<-} {cmd:i.country i.cohort}{cmd:)} to include
+    separate unidiff parameters for both dimensions. Furthermore, you could
+    type  {cmd:(}{it:xvars} {cmd:<-} {cmd:i.country##i.cohort}{cmd:)}
+    to include unidiff parameters for all country-cohort combinations.
+
+{pstd}
+    {it:controllvars} are control variables whose effects are assumed to be 
+    constant across layers. 
 
 
 {marker options}{...}
 {title:Options}
 
 {phang}
-    {opt layer(varlist)} specifies one or more layer variables. {it:varlist}
-    may contain factor variables; see {help fvvarlist}. Typically,
-    {cmd:layer()} only contains a single categorical variable specified as
-    {cmd:i.}{it:varname} (e.g. countries or birth-cohort categories). However,
-    multiple variables or continuous variables are allowed. For example,
-    specify {cmd:layer(c.cohort##c.cohort)} to model the unidiff scaling factor
-    as a quadratic function of variable {cmd:cohort}. Likewise, if your data contains
-    information on countries and birth cohorts, you could type 
-    {cmd:layer(i.country i.cohort)} to include separate 
-    unidiff parameters for both dimensions. Furthermore, 
-    you could type {cmd:layer(i.country##i.cohort)} to include unidiff parameters
-    for all country-cohort combinations.
-
-{pmore}
-    Option {cmd:layer()} is required. If multiple sets of {it:xvars} are 
-    specified (generalized unidiff model), multiple {cmd:layer()} options are 
-    required (one for each set of {it:xvars}).
+    {opt cfonly} causes the constant-fluidity model to be reported instead 
+    of the unidiff model. Estimation of the unidiff model will be skipped.
 
 {phang}
-    {opt controls(varlist)} specifies control variables whose effects are
-    assumed to be constant across layers. {it:varlist} may contain factor
-    variables; see {help fvvarlist}.
+    {opth constraints(numlist)} applies linear constraints to 
+    the estimation. {it:numlist} specifies the constraints by number, after 
+    they have been defined using the {helpb constraint} command. An  
+    {help udiff##exconstr:example} is provided below.
 
 {phang}
     {opt baseoutcome(#)} specifies the value of {depvar} to be treated as the base
@@ -136,12 +140,6 @@
 {phang}
     {opt noconstant} suppresses the constant (outcome-specific intercepts)
     in the model.
-
-{phang}
-    {opth constraints(numlist)} applies linear constraints to 
-    the estimation. {it:numlist} specifies the constraints by number, after 
-    they have been defined using the {helpb constraint} command. An  
-    {help udiff##exconstr:example} is provided below.
 
 {phang}
     {opt vce(vcetype)} specifies the type of variance estimation to be used
@@ -247,18 +245,41 @@
 {marker examples}{...}
 {title:Examples}
 
+    {help udiff##exbasic:Basic example}
+    {help udiff##exconstr:Specifying constraints}
+    {help udiff##exfit:Testing model fit}
+    {help udiff##excontinuous:Continuous origin variables}
+    {help udiff##exmultiple:Multiple unidiff terms}
+    {help udiff##excontrol:Control variables}
+
+{marker exbasic}{...}
 {dlgtab:Basic example}
 
 {pstd}
     The unidiff model in Example 2 in Pisati (2000) can be reproduced as follows:
 
         . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
-        . {stata udiff son i.father [fweight=obs], layer(i.country)}
+        . {stata udiff son i.father <- i.country [fweight=obs]}
 
 {pstd}
     A likelihood-ratio test against the constant-fluidity model is included in the
     header of the output table. The test is highly significant and confirms that
     there are differences in the unidiff parameters between the countries.
+
+{pstd}
+    To be more explicit, the same model could estimated typing
+
+        . {stata udiff son (i.father <- i.country) [fweight=obs]}
+
+{pstd}
+    Likewise, we could type
+
+        . {stata udiff son i.country -> i.father [fweight=obs]}
+
+{pstd}
+    or
+
+        . {stata udiff son (i.country -> i.father) [fweight=obs]}
 
 {pstd}
     By default, {cmd:udiff} omits the base category from the output
@@ -292,7 +313,77 @@
     commands would do:
 
         . {stata "constraint 1 [Psi_3]: 1.father"}
-        . {stata udiff son ib2.father [fweight=obs], layer(i.country) allequations constraints(1)}
+        . {stata udiff son (ib2.father <- i.country) [fweight=obs], allequations constraints(1)}
+
+{marker exfit}{...}
+{dlgtab:Testing model fit}
+
+{pstd}
+    To test the fit of the unidiff model, a likelihood-ratio test against a
+    saturated model can be performed, where the saturated model is a
+    fully-interacted multinomial logit. A significant test statistic would
+    indicate, that the saturated model fits the data significantly better than the
+    unidiff model. An example is as follows:
+
+        . {cmd:use http://www.stata.com/stb/stb55/sg142/example1.dta, clear}
+        . {cmd:udiff son (i.father <- i.country) [fweight=obs]}
+        . {cmd:estimates store udiff}
+        . {cmd:mlogit son i.father##i.country [fweight=obs]}
+        . {cmd:lrtest udiff ., force}
+
+{pstd}
+    Option {cmd:force} is needed because different estimation commands have been 
+    used to estimate the two models.
+
+{pstd}
+    Be aware that the likelihood-ratio test is only valid in case of simple
+    random sampling. Do not use the test with complex samples, i.e., if
+    sampling weights or the {cmd:svy} prefix have been specified.
+
+{marker excontinuous}{...}
+{dlgtab:Continuous origin variables}
+
+{pstd}
+    Assume that, apart from the categorical information on father's class, 
+    your data also contains a continuous origin variable such as father's ISEI score 
+    ({cmd:fisei}). Such information could easily be included in the model by adding the 
+    variable to the list of predictors in the unidiff term:
+
+        . {cmd:udiff son (i.father fisei <- i.country)}
+
+{marker exmultiple}{...}
+{dlgtab:Multiple unidiff terms}
+
+{pstd}
+    Assume your data also contains information on mothers. You could include this 
+    information in the unidiff model, for example, as follows:
+
+        . {cmd:udiff son (i.father i.mother <- i.country)}
+
+{pstd}
+    In this case, a single unidiff scaling factor would be used for both the effects of 
+    fathers and the effects of mothers. To use different unidiff factors and thus 
+    allow the effects of father and mothers to vary differently across countries, you 
+    could type:
+
+        . {cmd:udiff son (i.father <- i.country) (i.mother <- i.country)}
+
+{marker excontrol}{...}
+{dlgtab:Control variables}
+
+{pstd}
+    Assume that the age structure (or distribution of birth years) is different
+    across countries and you want to take account of that in your analysis. You could,
+    for example, type 
+
+        . {cmd:udiff son (i.father <- i.country) age}
+
+{pstd}
+    In this way a an age effect that is common to all countries is included 
+    in the model. You could, of course, also use a more complex specification,
+    such as, e.g., 
+
+        . {cmd:udiff son (i.father <- i.country) c.age##c.age}
 
 
 {marker methods}{...}
@@ -334,7 +425,7 @@
     variation. In particular, the unidiff model introduces a scaling factor
     {it:b}(z) such that
 
-        ln {it:mu}(x,y,z) = {it:a} + {it:a}(x) + {it:a}(y) + {it:a}(z) + {it:a}(x,z) + {it:a}(y,z) + {it:b}(z) * {it:a}(x,y)
+        ln {it:mu}(x,y,z) = {it:a} + {it:a}(x) + {it:a}(y) + {it:a}(z) + {it:a}(x,z) + {it:a}(y,z) + {it:a}(x,y) * {it:b}(z)
 
 {pstd}
     That is, the unidiff model assumes that there is a common association pattern
@@ -355,7 +446,7 @@
     Furthermore, the unidiff model is equivalent to a multinomial logit written
     as
 
-        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + exp(Z'{it:phi}) * X'{it:psi}(y)) / D
+        Pr(Y = y| X, Z) = exp(W'{it:theta}(y) + X'{it:psi}(y) * exp(Z'{it:phi})) / D
 
 {pstd}
     where D is the sum of the expression in the numerator across all levels of
@@ -373,24 +464,24 @@
     and Z) are not represented in the model (i.e., the model only contains
     parameters that are related to Y).
 
-{dlgtab:Generalization: multiple unidiff components}
+{dlgtab:Generalization: multiple unidiff terms}
 
 {pstd}
     Generally seen, the unidiff model is just a multinomial logit model
     that contains a special kind of interaction terms. The model may thus be
     useful also for research questions that have nothing to do with social
     mobility. Furthermore, the model can be generalized so that it contains
-    multiple unidiff components. Let X1 and X2 be two sets of independent
+    multiple unidiff terms. Let X1 and X2 be two sets of independent
     variables, Z1 and Z2 two sets of layer variables, and C a set of
     control variables that are not interacted with Z1 or Z2. The model can then be
     written as:
 
 {p 8 8 2}Pr(Y = y| X1, Z1, X2, Z2, C) ={p_end}
-{p 12 12 2}exp(W'{it:theta}(y) + exp(Z1'{it:phi1}) * X1'{it:psi1}(y) + exp(Z2'{it:phi2}) * X2'{it:psi2}(y)) / D{p_end}
+{p 12 12 2}exp(W'{it:theta}(y) + X1'{it:psi1}(y) * exp(Z1'{it:phi1}) + X2'{it:psi2}(y) * exp(Z2'{it:phi2})) / D{p_end}
 
 {pstd}
     where W = (1, Z1', Z2', C')'. The model can be extended analogously 
-    to accommodate more than two unidiff components.
+    to accommodate more than two unidiff terms.
 
 {dlgtab:Estimation}
 
@@ -432,27 +523,21 @@
     {p_end}
 {p2col : {cmd:e(ibaseout)}}index of the base outcome
     {p_end}
-{p2col : {cmd:e(k_unidiff)}}number of unidiff components
+{p2col : {cmd:e(k_unidiff)}}number of unidiff terms
     {p_end}
 {p2col : {cmd:e(k_eform)}}number of equations to be affected by the {cmd:eform} option
     {p_end}
 
 {p2col 5 22 26 2: Macros}{p_end}
-{p2col : {cmd:e(layer)}}names of layer variables (if single unidiff component)
+{p2col : {cmd:e(cfonly)}}{cmd:cfonly} or empty
     {p_end}
-{p2col : {cmd:e(layer1)}}names of layer variables of 1st unidiff component
+{p2col : {cmd:e(layer)}}names of layer variables; if {cmd:e(k_unidiff)}=1
     {p_end}
-{p2col : {cmd:e(layer2)}}names of layer variables of 2nd unidiff component
+{p2col : {cmd:e(layer#)}}names of layer variables of #th unidiff term; if {cmd:e(k_unidiff)}>1
     {p_end}
-{p2col : ...}
+{p2col : {cmd:e(xvars)}}names of independent variables; if {cmd:e(k_unidiff)}=1
     {p_end}
-{p2col : {cmd:e(xvars)}}names of independent variables (if single unidiff component)
-    {p_end}
-{p2col : {cmd:e(xvars1)}}names of independent variables of 1st unidiff component
-    {p_end}
-{p2col : {cmd:e(xvars2)}}names of independent variables of 2nd unidiff component
-    {p_end}
-{p2col : ...}
+{p2col : {cmd:e(xvars#)}}names of independent variables of #th unidiff term; if {cmd:e(k_unidiff)}>1
     {p_end}
 {p2col : {cmd:e(controls)}}names of control variables
     {p_end}

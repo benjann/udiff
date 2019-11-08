@@ -1,4 +1,4 @@
-*! version 1.1.4  06nov2019  Ben Jann & Simon Seiler
+*! version 1.1.6  07nov2019  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -21,14 +21,14 @@ program Estimate, eclass
     // syntax
         syntax [anything] [if] [in] [fw iw pw aw] [, ///
             /// model
-            CONTrols(varlist numeric fv)             ///
             Baseoutcome(passthru)                    ///
             noConstant                               ///
+            CFonly                                   ///
             /// estimation
             vce(passthru)                            ///
             CLuster(passthru) Robust                 ///
-            from(passthru)                           ///
             CONSTRaints(numlist int <=1 <=1999)      ///
+            from(str)                                ///
             lfado                           /// undocumented; for certification
             /// display
             NOIsily noLOg noHeader                   ///
@@ -37,8 +37,9 @@ program Estimate, eclass
             ]
     if "`lfado'"=="" local lfspec lf2 udiff_lf2()
     else             local lfspec lf  udiff_lf
-    ParseVarlist `anything'          // returns depvar, xvars, xvars#, nunidiff
-    ParseLayer `nunidiff' `options'  // returns layer, layer#, options
+    if "`cfonly'"!="" local allequations allequations
+    if "`noisily'"=="" local quietly quietly
+    ParseVarlist `anything' // returns depvar, controls, xvars, xvars#, layer#, layers, nunidiff
     local vceopt =  `:length local vce'      | ///
                     `:length local weight'   | ///
                     `:length local cluster'  | ///
@@ -67,7 +68,7 @@ program Estimate, eclass
     
     // mark sample
     marksample touse
-    markout `touse' `depvar' `xvars' `layer' `controls' `clustvar'
+    markout `touse' `depvar' `xvars' `layers' `controls' `clustvar'
     
     // check depvar
     capt assert (`depvar'==abs(int(`depvar'))) if `touse'
@@ -79,7 +80,7 @@ program Estimate, eclass
     // collect information on outcomes and check for collinearity
     // - expand factor variables (so that terms can be matched after _rmcoll)
     local xvars
-    local layer
+    local layers
     forv i=1/`nunidiff' {
         fvexpand `xvars`i'' if `touse'
         local xvars`i' `r(varlist)'
@@ -87,29 +88,26 @@ program Estimate, eclass
         fvexpand `layer`i'' if `touse'
         local layer`i' `r(varlist)'
         local layer`i': list uniq layer`i'
-        local layer: list layer | layer`i'
+        local layers: list layers | layer`i'
     }
     if `"`controls'"'!="" {
         fvexpand `controls' if `touse'
         local controls `r(varlist)'
     }
-    local vlist `depvar' `xvars' `layer' `controls'
+    local vlist `depvar' `xvars' `layers' `controls'
     local vlist0: list uniq vlist
     if `: list sizeof vlist'!=`: list sizeof vlist0' {
-        di as err "inconsistent list of variables; xvars and controls must be" ///
-            " unique; layer must not contain xvars or controls"
+        di as err "inconsistent list of variables; depvar, xvars, and controls" ///
+            " must be unique; layervars must not contain depvar, xvars, or controls"
         exit 198
     }
     // - run _rmcoll
     _rmcoll `vlist' `wgt' if `touse', `constant' noskipline mlogit `baseoutcome' expand
     // - get coefficients and ll of empty model
-    if `"`from'"'=="" {
-        if "`constant'"=="" {
-            tempname b0
-            matrix `b0' = r(b0)
-            local lf0 = r(ll_0)
-        }
-        else  local lf0 = .
+    if `"`from'"'=="" & "`constant'"=="" {
+        tempname b0
+        matrix `b0' = r(b0)
+        local ll_0 = r(ll_0)
     }
     // - rebuild variable lists
     local vlist `r(varlist)'
@@ -124,13 +122,13 @@ program Estimate, eclass
             local xvars `xvars' `term'
         }
     }
-    local vlist0 `layer'
-    local layer
+    local vlist0 `layers'
+    local layers
     local n: list sizeof vlist0
     forv i=1/`n' {
         gettoken term0 vlist0 : vlist0
         gettoken term vlist : vlist
-        local layer `layer' `term'
+        local layers `layers' `term'
         if "`term'"!="`term0'" {
             forv j=1/`nunidiff' {
                 local layer`j': subinstr local layer`j' "`term0'" "`term'", word
@@ -170,13 +168,15 @@ program Estimate, eclass
     local Psi "Psi"
     local Theta "Theta"
     local eqnames
-    forv j=1/`nunidiff' {
-        if (`j'==1) local thedepvar "`depvar'="
-        else        local thedepvar
-        if (`nunidiff'==1) local term `Phi'
-        else               local term `Phi'`j'
-        local phi `phi' (`term': `thedepvar'`layer`j'', nocons)
-        local eqnames `eqnames' `term'
+    if "`cfonly'"=="" {
+        local thedepvar "`depvar'="
+        forv j=1/`nunidiff' {
+            if (`nunidiff'==1) local term `Phi'
+            else               local term `Phi'`j'
+            local phi `phi' (`term': `thedepvar'`layer`j'', nocons)
+            local thedepvar
+            local eqnames `eqnames' `term'
+        }
     }
     local thedepvar "`depvar'="
     forv j=1/`nunidiff' {
@@ -191,22 +191,37 @@ program Estimate, eclass
             local eqnames `eqnames' `term'_`val'
         }
     }
+    if "`cfonly'"!="" {
+        local psi `psi0'
+    }
     forval i = 1/`nout' {
         if `i' == `ibase' continue
         local val: word `i' of `out'
-        local theta `theta' (`Theta'_`val': `layer' `controls', `constant')
+        local theta `theta' (`Theta'_`val': `layers' `controls', `constant')
         local thetalist `thetalist' `Theta'_`val'
     }
     local eqnames `eqnames' `thetalist'
     
     // starting values (constant fluidity model)
-    if `"`from'"'=="" {
-        if "`noisily'"!="" di as txt _n "Constant fluidity model"
-        else if "`log'"=="" di as txt _n "fitting constant fluidity model ..." _c
+    if `"`from'"'!="" {
+        local initopt init(`from')
+    }
+    else if "`cfonly'"!="" {
         mat coleq `b0' = `thetalist'
         local initopt init(`b0') 
-        if !missing(`lf0') {
-                local initopt `initopt' lf0(`=`nout'-1' `lf0')
+        if !missing(`ll_0') {
+            local initopt `initopt' lf0(`=`nout'-1' `ll_0')
+        }
+    }
+    else {
+        if "`noisily'"!="" di as txt _n "Constant-fluidity model"
+        else if "`log'"=="" di as txt _n "fitting constant fluidity model ..." _c
+        if "`b0'"!="" {
+            mat coleq `b0' = `thetalist'
+            local initopt init(`b0') 
+            if !missing(`ll_0') {
+                local initopt `initopt' lf0(`=`nout'-1' `ll_0')
+            }
         }
         nobreak {
             global UDIFF_mtype    0
@@ -214,11 +229,10 @@ program Estimate, eclass
             global UDIFF_out      `out'
             global UDIFF_ibase    `ibase'
             global UDIFF_nunidiff `nunidiff'
-            capture `noisily' break {
+            capture noisily `quietly' break ///
                 ml model `lfspec' `psi0' `theta' if `touse' `wgt', ///
                    `initopt' `mlopts' `log' search(off) collinear ///
                     constraints(`constraints') maximize missing
-            }
             global UDIFF_mtype
             global UDIFF_nout
             global UDIFF_out
@@ -230,22 +244,18 @@ program Estimate, eclass
         else if "`log'"=="" di as txt " done"
         local initopt continue
     }
-    else {
-        local initopt `"init(`from')"'
-    }
     
     // estimate unidiff model
     nobreak {
-        global UDIFF_mtype    1
+        global UDIFF_mtype    = ("`cfonly'"=="")
         global UDIFF_nout     `nout'
         global UDIFF_out      `out'
         global UDIFF_ibase    `ibase'
         global UDIFF_nunidiff `nunidiff'
-        capture noisily break {
+        capture noisily break ///
             ml model `lfspec' `phi' `psi' `theta' if `touse' `wgt', ///
                 `initopt' `mlopts' `log' search(off) collinear ///
                 constraints(`constraints') maximize missing
-        }
         global UDIFF_mtype
         global UDIFF_nout
         global UDIFF_out
@@ -268,61 +278,77 @@ program Estimate, eclass
     eret local controls   `"`controls'"'
     forv j=1/`nunidiff' {
         if `nunidiff'==1 {
-            eret local layer      `"`layer`j''"'
-            eret local indepvars  `"`xvars`j''"'
+            eret local layervars `"`layer`j''"'
+            eret local xvars     `"`xvars`j''"'
         }
         else {
-            eret local layer`j'      `"`layer`j''"'
-            eret local indepvars`j'  `"`xvars`j''"'
+            eret local layervars`j' `"`layer`j''"'
+            eret local xvars`j'     `"`xvars`j''"'
         }
     }
-    eret local title      "Individual-level unidiff estimator"
+    eret local cfonly     "`cfonly'"
+    if "`cfonly'"!="" {
+        eret local title  "Constant-fluidity model"
+    }
+    else {
+        eret local title  "Unidiff model"
+    }
 
     // display
     Display, `diopts' `eform' `allequations'
 end
 
 program ParseVarlist
-    syntax varlist(numeric fv min=2) // basic check
     gettoken depvar vlist : 0, parse(" (")
+    if `"`depvar'"'=="" {
+        di as err "{it:depvar} required"
+        exit 198
+    }
     _fv_check_depvar `depvar'
     c_local depvar `depvar'
     local i 0
-    local xvars
-    gettoken varlist : vlist, match(par)
-    if (`"`par'"'!="(") {
-        local ++i
-        local 0 `"`vlist'"'
-        syntax varlist(numeric fv)
-        c_local xvars1 `varlist'
-        local xvars `xvars' `varlist'
-    }
-    else {
-        while (`"`vlist'"'!="") {
-            local ++i
-            gettoken varlist vlist : vlist, match(par)
-            if (`"`par'"'!="(") error 198
-            local 0 `"`varlist'"'
-            syntax varlist(numeric fv)
-            c_local xvars`i' `varlist'
-            local xvars `xvars' `varlist'
+    while (`"`vlist'"'!="") {
+        gettoken x : vlist, parse("(")
+        if `"`x'"'=="(" gettoken x vlist : vlist, match(par)
+        else            gettoken x vlist : vlist, parse("(")
+        local arrow "->"
+        local pos = strpos(`"`x'"', "`arrow'")
+        if `pos'==0 {
+            local arrow "<-"
+            local pos = strpos(`"`x'"', "`arrow'")
+            if `pos'==0 {
+                local 0 `"`x'"'
+                syntax varlist(numeric fv)
+                local controls `controls' `varlist'
+                continue
+            }
         }
+        local ++i
+        if "`arrow'"=="->" {
+            local layer = substr(`"`x'"', 1, `pos'-1)
+            local x     = substr(`"`x'"', `pos'+2, .)
+        }
+        else {
+            local layer = substr(`"`x'"', `pos'+2, .)
+            local x     = substr(`"`x'"', 1, `pos'-1)
+        }
+        local 0 `"`x'"'
+        syntax varlist(numeric fv)
+        c_local xvars`i' `varlist'
+        local xvars `xvars' `varlist'
+        local 0 `"`layer'"'
+        syntax varlist(numeric fv)
+        c_local layer`i' `varlist'
+        local layers `layers' `varlist'
     }
+    if `i'==0 {
+        di as err "must specify at least one unidiff term"
+        exit 198
+    }
+    c_local controls `controls'
+    c_local layers   `layers'
     c_local xvars    `xvars'
     c_local nunidiff `i'
-end
-
-program ParseLayer
-    gettoken nunidiff options : 0
-    local layers
-    forv i=1/`nunidiff' {
-        local 0 `", `options'"'
-        syntax, layer(varlist numeric fv) [ * ]
-        c_local layer`i' `"`layer'"'
-        local layers `layers' `layer'
-    }
-    c_local layer `layers'
-    c_local options `options'
 end
 
 program Display
