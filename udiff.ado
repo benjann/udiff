@@ -1,4 +1,4 @@
-*! version 1.1.6  07nov2019  Ben Jann & Simon Seiler
+*! version 1.1.7  09nov2019  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -275,7 +275,7 @@ program Estimate, eclass
     eret local baseout    "`baseout'"
     eret local out_labels `"`out_labels'"'
     eret local eqnames    `"`eqnames'"'
-    eret local controls   `"`controls'"'
+    eret local controlvars   `"`controls'"'
     forv j=1/`nunidiff' {
         if `nunidiff'==1 {
             eret local layervars `"`layer`j''"'
@@ -307,48 +307,51 @@ program ParseVarlist
     _fv_check_depvar `depvar'
     c_local depvar `depvar'
     local i 0
+    local k 0
     while (`"`vlist'"'!="") {
-        gettoken x : vlist, parse("(")
-        if `"`x'"'=="(" gettoken x vlist : vlist, match(par)
-        else            gettoken x vlist : vlist, parse("(")
-        local arrow "->"
-        local pos = strpos(`"`x'"', "`arrow'")
-        if `pos'==0 {
-            local arrow "<-"
-            local pos = strpos(`"`x'"', "`arrow'")
-            if `pos'==0 {
-                local 0 `"`x'"'
-                syntax varlist(numeric fv)
-                local controls `controls' `varlist'
-                continue
-            }
-        }
-        local ++i
-        if "`arrow'"=="->" {
-            local layer = substr(`"`x'"', 1, `pos'-1)
-            local x     = substr(`"`x'"', `pos'+2, .)
+        gettoken term : vlist, match(par) bind
+        if `"`par'"'=="(" {
+            // term is "(...)"
+            gettoken term vlist : vlist, match(par) bind
         }
         else {
-            local layer = substr(`"`x'"', `pos'+2, .)
-            local x     = substr(`"`x'"', 1, `pos'-1)
+            // collect elements until next "(...)"
+            gettoken term vlist : vlist, match(par) bind
+            while (`"`vlist'"'!="") {
+                gettoken next : vlist, match(par) bind
+                if `"`par'"'=="(" continue, break
+                gettoken next vlist : vlist, match(par) bind
+                local term `term' `next'
+            }
+            local par
         }
+        if `"`term'"'=="" continue
+        local ++i
+        mata: parse_term(`i', `"`par'"'!="(", st_local("term"))
+        if (`"`layer'"'=="") { // controlvars
+            local 0 `"`x'"'
+            syntax varlist(numeric fv)
+            local controls `controls' `varlist'
+            continue
+        }
+        local ++k
         local 0 `"`x'"'
         syntax varlist(numeric fv)
-        c_local xvars`i' `varlist'
+        c_local xvars`k' `varlist'
         local xvars `xvars' `varlist'
         local 0 `"`layer'"'
         syntax varlist(numeric fv)
-        c_local layer`i' `varlist'
+        c_local layer`k' `varlist'
         local layers `layers' `varlist'
     }
-    if `i'==0 {
+    if `k'==0 {
         di as err "must specify at least one unidiff term"
         exit 198
     }
     c_local controls `controls'
     c_local layers   `layers'
     c_local xvars    `xvars'
-    c_local nunidiff `i'
+    c_local nunidiff `k'
 end
 
 program Display
@@ -373,3 +376,57 @@ program Display
     ml display, noheader `first' `options'
 end
 
+version 11
+mata:
+mata set matastrict on
+
+void parse_term(real scalar i, real scalar nopar, string scalar term)
+{
+    real scalar      n
+    string scalar    arrow, x, layer
+    string rowvector terms
+    
+    arrow = "<-"
+    if (!(n = strpos(term, arrow))) {
+        arrow = "->"
+        if (!(n = strpos(term, arrow))) {
+            arrow = ""
+            if (i>1 & nopar) {  // control variables
+                st_local("x", term)
+                st_local("layer", "")
+                return
+            }
+        }
+    }
+    if (arrow == "<-") {
+        x     = strtrim(substr(term, 1, n-1))
+        layer = strtrim(substr(term, n+2, .))
+    }
+    else if (arrow == "->"){
+        x     = strtrim(substr(term, n+2, .))
+        layer = strtrim(substr(term, 1, n-1))
+    }
+    else {
+        terms = strtrim(tokens(term))
+        terms = select(terms, terms:!="")
+        if (length(terms)>=2) {
+            x     = invtokens(terms[|1 \ length(terms)-1|])
+            layer = terms[length(terms)]
+        }
+        else {
+            x = layer = ""
+        }
+    }
+    if (strlen(layer)==0) {
+        display("{err}invalid unidiff term; {it:layervar} required")
+        exit(198)
+    }
+    if (strlen(x)==0) {
+        display("{err}invalid unidiff term; {it:xvars} required")
+        exit(198)
+    }
+    st_local("x"    , x)
+    st_local("layer", layer)
+}
+
+end

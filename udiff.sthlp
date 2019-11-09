@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.4  08nov2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.5  09nov2019  Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -21,21 +21,31 @@
 {marker syntax}{...}
 {title:Syntax}
 
+{pstd}
+    Simple syntax:
+
 {p 8 15 2}
-    {cmd:udiff} {depvar} {it:termlist} [{help varlist:{it:controlvars}}] {ifin} {weight} [{cmd:,} 
+    {cmd:udiff} {depvar} {it:xvars} {it:layervar} {ifin} {weight} [{cmd:,} 
     {help udiff##opts:{it:options}} ]
 
 {pstd}
-    where {it:termlist} is a space-separated list of one or more unidiff terms specified as
+    Advanced syntax:
 
-        {cmd:(}{help varlist:{it:xvars}} {cmd:<-} {help varlist:{it:layervars}}{cmd:)}
+{p 8 15 2}
+    {cmd:udiff} {depvar} {it:term} [{it:term} ...] [{help varlist:{it:controlvars}}] {ifin} {weight} [{cmd:,} 
+    {help udiff##opts:{it:options}} ]
 
-{pstd}
-    or, equivalently, {cmd:(}{help varlist:{it:layervars}} {cmd:->} {help varlist:{it:xvars}}{cmd:)};
-    the parentheses are only required if multiple unidiff terms or
-    {it:controlvars} are specified. {it:xvars} must be unique across
-    unidiff terms, {it:layervars} may be repeated. {it:xvars}, {it:layervars},
-    and {it:controlvars} may contain factor variables; see {help fvvarlist}. 
+{pmore}
+    where {it:term} is a unidiff term specified as
+
+            {cmd:(}{help varlist:{it:xvars}} {cmd:<-} {help varlist:{it:layervars}}{cmd:)}
+        or
+            {cmd:(}{help varlist:{it:layervars}} {cmd:->} {help varlist:{it:xvars}}{cmd:)}
+
+{pmore}
+    {it:xvars} must be unique across unidiff terms, {it:layervars} may be repeated; parentheses may be
+    omitted if there are no control variables and only one unidiff term is specified; the arrow can be 
+    omitted if a term only contains a single layer variable and the layer variable is specified last.
 
 
 {synoptset 22 tabbed}{...}
@@ -67,6 +77,7 @@
 {syntab :Maximization}
 {synopt :{it:{help maximize:maximize_options}}}maximization options{p_end}
 {synoptline}
+{p 4 6 2}{it:xvars}, {it:layervars}, and {it:controlvars} may contain factor variables; see {help fvvarlist}.{p_end}
 {p 4 6 2}{helpb svy} and {helpb mi estimate} are supported; see {help prefix}.{p_end}
 {p 4 6 2}{cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed; see help {help weight}.{p_end}
 {p 4 6 2}{helpb udiff##postest:predict} and other postestimation commands are available after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
@@ -259,27 +270,19 @@
     The unidiff model in Example 2 in Pisati (2000) can be reproduced as follows:
 
         . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
-        . {stata udiff son i.father <- i.country [fweight=obs]}
+        . {stata udiff son i.father i.country [fweight=obs]}
+
+{pstd}
+    Using advanced syntax we could type
+
+        . {stata udiff son (i.father <- i.country) [fweight=obs]}
+    or
+        . {stata udiff son (i.country -> i.father) [fweight=obs]}
 
 {pstd}
     A likelihood-ratio test against the constant-fluidity model is included in the
-    header of the output table. The test is highly significant and confirms that
+    header of the output table. In the example, the test is highly significant and confirms that
     there are differences in the unidiff parameters between the countries.
-
-{pstd}
-    To be more explicit, the same model could estimated typing
-
-        . {stata udiff son (i.father <- i.country) [fweight=obs]}
-
-{pstd}
-    Likewise, we could type
-
-        . {stata udiff son i.country -> i.father [fweight=obs]}
-
-{pstd}
-    or
-
-        . {stata udiff son (i.country -> i.father) [fweight=obs]}
 
 {pstd}
     By default, {cmd:udiff} omits the base category from the output
@@ -313,7 +316,7 @@
     commands would do:
 
         . {stata "constraint 1 [Psi_3]: 1.father"}
-        . {stata udiff son (ib2.father <- i.country) [fweight=obs], allequations constraints(1)}
+        . {stata udiff son ib2.father i.country [fweight=obs], allequations constraints(1)}
 
 {marker exfit}{...}
 {dlgtab:Testing model fit}
@@ -326,7 +329,7 @@
     unidiff model. An example is as follows:
 
         . {cmd:use http://www.stata.com/stb/stb55/sg142/example1.dta, clear}
-        . {cmd:udiff son (i.father <- i.country) [fweight=obs]}
+        . {cmd:udiff son i.father i.country [fweight=obs]}
         . {cmd:estimates store udiff}
         . {cmd:mlogit son i.father##i.country [fweight=obs]}
         . {cmd:lrtest udiff ., force}
@@ -531,15 +534,15 @@
 {p2col 5 22 26 2: Macros}{p_end}
 {p2col : {cmd:e(cfonly)}}{cmd:cfonly} or empty
     {p_end}
-{p2col : {cmd:e(layer)}}names of layer variables; if {cmd:e(k_unidiff)}=1
+{p2col : {cmd:e(layervars)}}names of layer variables; if {cmd:e(k_unidiff)}=1
     {p_end}
-{p2col : {cmd:e(layer#)}}names of layer variables of #th unidiff term; if {cmd:e(k_unidiff)}>1
+{p2col : {cmd:e(layervars#)}}names of layer variables of #th unidiff term; if {cmd:e(k_unidiff)}>1
     {p_end}
 {p2col : {cmd:e(xvars)}}names of independent variables; if {cmd:e(k_unidiff)}=1
     {p_end}
 {p2col : {cmd:e(xvars#)}}names of independent variables of #th unidiff term; if {cmd:e(k_unidiff)}>1
     {p_end}
-{p2col : {cmd:e(controls)}}names of control variables
+{p2col : {cmd:e(controlvars)}}names of control variables
     {p_end}
 {p2col : {cmd:e(eqnames)}}names of equations
     {p_end}
