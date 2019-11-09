@@ -25,7 +25,7 @@
     Simple syntax:
 
 {p 8 15 2}
-    {cmd:udiff} {depvar} {it:xvars} {it:layervar} {ifin} {weight} [{cmd:,} 
+    {cmd:udiff} {depvar} {help varlist:{it:xvars}} {help varname:{it:layervar}} {ifin} {weight} [{cmd:,} 
     {help udiff##opts:{it:options}} ]
 
 {pstd}
@@ -38,14 +38,15 @@
 {pmore}
     where {it:term} is a unidiff term specified as
 
+            {cmd:(}{help varlist:{it:xvars}} {help varname:{it:layervar}}{cmd:)}
+        or
             {cmd:(}{help varlist:{it:xvars}} {cmd:<-} {help varlist:{it:layervars}}{cmd:)}
         or
             {cmd:(}{help varlist:{it:layervars}} {cmd:->} {help varlist:{it:xvars}}{cmd:)}
 
 {pmore}
     {it:xvars} must be unique across unidiff terms, {it:layervars} may be repeated; parentheses may be
-    omitted if there are no control variables and only one unidiff term is specified; the arrow can be 
-    omitted if a term only contains a single layer variable and the layer variable is specified last.
+    omitted if there are no control variables and if only one unidiff term is specified.
 
 
 {synoptset 22 tabbed}{...}
