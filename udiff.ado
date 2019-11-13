@@ -1,4 +1,4 @@
-*! version 1.1.7  09nov2019  Ben Jann & Simon Seiler
+*! version 1.1.8  13nov2019  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -306,41 +306,42 @@ program ParseVarlist
     }
     _fv_check_depvar `depvar'
     c_local depvar `depvar'
-    local i 0
     local k 0
     while (`"`vlist'"'!="") {
         gettoken term : vlist, match(par) bind
-        if `"`par'"'=="(" {
-            // term is "(...)"
+        if `"`par'"'=="(" { // term is "(...)"
             gettoken term vlist : vlist, match(par) bind
         }
         else {
-            // collect elements until next "(...)"
-            gettoken term vlist : vlist, match(par) bind
-            while (`"`vlist'"'!="") {
-                gettoken next : vlist, match(par) bind
-                if `"`par'"'=="(" continue, break
-                gettoken next vlist : vlist, match(par) bind
-                local term `term' `next'
+            if `k'>0 {  // controlvars
+                local 0 `"`vlist'"'
+                capt n syntax varlist(numeric fv)
+                if _rc {
+                    di as err "invalid specification of {it:controlvars}"
+                    exit 198
+                }
+                local controls `varlist'
+                continue, break
             }
-            local par
-        }
-        if `"`term'"'=="" continue
-        local ++i
-        mata: parse_term(`i', `"`par'"'!="(", st_local("term"))
-        if (`"`layer'"'=="") { // controlvars
-            local 0 `"`x'"'
-            syntax varlist(numeric fv)
-            local controls `controls' `varlist'
-            continue
+            mata: st_local("term", strtrim(st_local("vlist")))
+            local vlist
         }
         local ++k
+        mata: parse_udiffterm(st_local("term"))
         local 0 `"`x'"'
-        syntax varlist(numeric fv)
+        capt n syntax varlist(numeric fv)
+        if _rc {
+            di as err "invalid specification of unidiff terms"
+            exit 198
+        }
         c_local xvars`k' `varlist'
         local xvars `xvars' `varlist'
         local 0 `"`layer'"'
-        syntax varlist(numeric fv)
+        capt n syntax varlist(numeric fv)
+        if _rc {
+            di as err "invalid specification of unidiff terms"
+            exit 198
+        }
         c_local layer`k' `varlist'
         local layers `layers' `varlist'
     }
@@ -380,41 +381,33 @@ version 11
 mata:
 mata set matastrict on
 
-void parse_term(real scalar i, real scalar nopar, string scalar term)
+void parse_udiffterm(string scalar term)
 {
     real scalar      n
     string scalar    arrow, x, layer
     string rowvector terms
     
     arrow = "<-"
-    if (!(n = strpos(term, arrow))) {
-        arrow = "->"
-        if (!(n = strpos(term, arrow))) {
-            arrow = ""
-            if (i>1 & nopar) {  // control variables
-                st_local("x", term)
-                st_local("layer", "")
-                return
-            }
-        }
-    }
-    if (arrow == "<-") {
+    if ((n = strpos(term, arrow))) {
         x     = strtrim(substr(term, 1, n-1))
         layer = strtrim(substr(term, n+2, .))
     }
-    else if (arrow == "->"){
-        x     = strtrim(substr(term, n+2, .))
-        layer = strtrim(substr(term, 1, n-1))
-    }
     else {
-        terms = strtrim(tokens(term))
-        terms = select(terms, terms:!="")
-        if (length(terms)>=2) {
-            x     = invtokens(terms[|1 \ length(terms)-1|])
-            layer = terms[length(terms)]
+        arrow = "->"
+        if ((n = strpos(term, arrow))) {
+            x     = strtrim(substr(term, n+2, .))
+            layer = strtrim(substr(term, 1, n-1))
         }
         else {
-            x = layer = ""
+            terms = strtrim(tokens(term))
+            terms = select(terms, terms:!="")
+            if (length(terms)>=2) {
+                x     = invtokens(terms[|1 \ length(terms)-1|])
+                layer = terms[length(terms)]
+            }
+            else {
+                x = layer = ""
+            }
         }
     }
     if (strlen(layer)==0) {

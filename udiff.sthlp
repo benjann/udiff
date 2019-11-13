@@ -559,7 +559,7 @@
 {title:References}
 
 {phang}
-    Erikson, R., J.J. Goldthorpe. 1992. The Constant Flux: A Study of Class
+    Erikson, R., J.H. Goldthorpe. 1992. The Constant Flux: A Study of Class
     Mobility in Industrial Societies. Oxford: Oxford University Press.
     {p_end}
 {phang}

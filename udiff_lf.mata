@@ -1,4 +1,4 @@
-*! version 1.1.1  05nov2019  Ben Jann & Simon Seiler
+*! version 1.1.2  13nov2019  Ben Jann & Simon Seiler
 
 version 11
 mata:
@@ -7,7 +7,7 @@ mata set matastrict on
 void udiff_lf2(transmorphic scalar ML, real scalar todo, real rowvector b, 
     real colvector lnf, real matrix S, real matrix H)
 {
-    real scalar    i, ii, k, kk, K, j, jj, J, base, N, r, rr, c, cc
+    real scalar    i, ii, k, kk, K, j, jj, J, base, N, r, rr, c, cc, done
     real rowvector out
     real colvector Y, Yout, D
     real matrix    Zphi, Xpsi, Wtheta, Q, expQ, P, XpsiYi, sumPXpsi, kj, djk
@@ -93,14 +93,16 @@ void udiff_lf2(transmorphic scalar ML, real scalar todo, real rowvector b,
     r = rr = 1
     for (k=1; k<=K; k++) {
         c = cc = 1
-        for (kk=1; kk<=k; kk++) {           // dPhi*dPhi
+        done = 0
+        for (kk=1; kk<=K; kk++) {           // dPhi*dPhi
             if (k==kk)
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                 (XpsiYi[,k] - rowsum((djk[,kj[k,]] + P):*Xpsi[,kj[k,]]))
                 :* Zphi[,k])
             else
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                 -rowsum(djk[,kj[kk,]]:*Xpsi[,kj[k,]]) :* Zphi[,k])
+            if (done) break
         }
     }
     for (k=1; k<=K; k++) {
@@ -108,72 +110,79 @@ void udiff_lf2(transmorphic scalar ML, real scalar todo, real rowvector b,
             c = cc = 1
             for (kk=1; kk<=K; kk++) {       // dPsi*dPhi
                 if (k==kk)
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     (Yout[,j] - djk[,kj[k,j]] - P[,j]) :* Zphi[,k])
                 else
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     -djk[,kj[kk,j]] :* Zphi[,k])
             }
-            for (kk=1; kk<=k; kk++) {
-                for (jj=1; jj<=j; jj++) {   // dPsi*dPsi
+            done = 0
+            for (kk=1; kk<=K; kk++) {
+                for (jj=1; jj<=J; jj++) {   // dPsi*dPsi
                     if (j==jj)
-                        udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                        done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                         P[,j] :* (P[,j] :- 1) :* Zphi[,k] :* Zphi[,kk])
                     else
-                        udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                        done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                         P[,j] :* P[,jj] :* Zphi[,k] :* Zphi[,kk])
+                    if (done) break
                 }
+                if (done) break
             }
         }
     }
     for (j=1; j<=J; j++) {
         c = cc = 1
         for (k=1; k<=K; k++) {              // dTheta*dPhi
-            udiff_lf2_H(ML, r, c, lnf, H, rr, cc, -djk[,kj[k,j]])
+            done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc, -djk[,kj[k,j]])
         }
         for (k=1; k<=K; k++) {
             for (jj=1; jj<=J; jj++) {       // dTheta*dPsi
                 if (j==jj)
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     P[,j] :* (P[,j] :- 1) :* Zphi[,k])
                 else
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     P[,j] :* P[,jj] :* Zphi[,k])
             }
         }
-        for (jj=1; jj<=j; jj++) {           // dTheta*dTheta
+        done = 0
+        for (jj=1; jj<=J; jj++) {           // dTheta*dTheta
             if (j==jj)
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                 P[,j] :* (P[,j] :- 1))
             else
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc, P[,j] :* P[,jj])
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc, P[,j] :* P[,jj])
+            if (done) break
         }
     }
 }
 
-void udiff_lf2_H(transmorphic scalar ML, real scalar r, real scalar c,
+real scalar udiff_lf2_H(transmorphic scalar ML, real scalar r, real scalar c,
     real colvector lnf, real matrix H, real scalar rr, real scalar cc, 
     real colvector l2)
 {
-    real scalar a, b
+    real scalar a, b, done
     real matrix h
     
     h = moptimize_util_matsum(ML, r, c, l2, lnf[1])
     a = rows(h)-1; b = cols(h)-1
     H[|rr,cc \ rr+a,cc+b|] = h
-    if (r==c) {
+    done = (r==c)
+    if (done) {
         rr = rr + a + 1
         r++
     }
     else H[|cc,rr \ cc+b,rr+a|] = h'
     cc = cc + b + 1
     c++
+    return(done)
 }
 
 void udiff_lf2_m0(transmorphic scalar ML, real scalar todo, real rowvector b, 
     real colvector lnf, real matrix S, real matrix H)
 {
-    real scalar    i, ii, k, kk, K, j, jj, J, base, N, r, rr, c, cc
+    real scalar    i, ii, k, kk, K, j, jj, J, base, N, r, rr, c, cc, done
     real rowvector out
     real colvector Y, Yout, D
     real matrix    Xpsi, Wtheta, Q, expQ, P, kj
@@ -235,15 +244,18 @@ void udiff_lf2_m0(transmorphic scalar ML, real scalar todo, real rowvector b,
     for (k=1; k<=K; k++) {
         for (j=1; j<=J; j++) {
             c = cc = 1
-            for (kk=1; kk<=k; kk++) {
-                for (jj=1; jj<=j; jj++) {   // dPsi*dPsi
+            done = 0
+            for (kk=1; kk<=K; kk++) {
+                for (jj=1; jj<=J; jj++) {   // dPsi*dPsi
                     if (j==jj)
-                        udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                        done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                         P[,j] :* (P[,j] :- 1))
                     else
-                        udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                        done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                         P[,j] :* P[,jj])
+                    if (done) break
                 }
+                if (done) break
             }
         }
     }
@@ -252,19 +264,21 @@ void udiff_lf2_m0(transmorphic scalar ML, real scalar todo, real rowvector b,
         for (k=1; k<=K; k++) {
             for (jj=1; jj<=J; jj++) {       // dTheta*dPsi
                 if (j==jj)
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     P[,j] :* (P[,j] :- 1))
                 else
-                    udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                    done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                     P[,j] :* P[,jj])
             }
         }
-        for (jj=1; jj<=j; jj++) {           // dTheta*dTheta
+        done = 0
+        for (jj=1; jj<=J; jj++) {           // dTheta*dTheta
             if (j==jj)
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc,
                 P[,j] :* (P[,j] :- 1))
             else
-                udiff_lf2_H(ML, r, c, lnf, H, rr, cc, P[,j] :* P[,jj])
+                done = udiff_lf2_H(ML, r, c, lnf, H, rr, cc, P[,j] :* P[,jj])
+            if (done) break
         }
     }
 }
