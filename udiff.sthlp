@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.1.5  09nov2019  Ben Jann & Simon Seiler}{...}
+{* *! version 1.1.7  03apr2020 Ben Jann & Simon Seiler}{...}
 {vieweralsosee "[R] mlogit" "help mlogit"}{...}
 {viewerjumpto "Syntax" "udiff##syntax"}{...}
 {viewerjumpto "Description" "udiff##description"}{...}
@@ -25,14 +25,14 @@
     Simple syntax:
 
 {p 8 15 2}
-    {cmd:udiff} {depvar} {help varlist:{it:xvars}} {help varname:{it:layervar}} {ifin} {weight} [{cmd:,} 
+    {cmd:udiff} {depvar} {help varlist:{it:xvars}} {help varname:{it:layervar}} {ifin} {weight} [{cmd:,}
     {help udiff##opts:{it:options}} ]
 
 {pstd}
     Advanced syntax:
 
 {p 8 15 2}
-    {cmd:udiff} {depvar} {it:term} [{it:term} ...] [{help varlist:{it:controlvars}}] {ifin} {weight} [{cmd:,} 
+    {cmd:udiff} {depvar} {it:term} [{it:term} ...] [{help varlist:{it:controlvars}}] {ifin} {weight} [{cmd:,}
     {help udiff##opts:{it:options}} ]
 
 {pmore}
@@ -82,6 +82,9 @@
 {p 4 6 2}{helpb svy} and {helpb mi estimate} are supported; see {help prefix}.{p_end}
 {p 4 6 2}{cmd:fweight}s, {cmd:aweight}s, {cmd:iweight}s, and {cmd:pweight}s are allowed; see help {help weight}.{p_end}
 {p 4 6 2}{helpb udiff##postest:predict} and other postestimation commands are available after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
+{p 4 6 2}{helpb udiff##postest:estat rescale} computes rescaled unidiff parameters after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
+{p 4 6 2}{helpb udiff##postest:estat lambda} computes lambda coefficients after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
+{p 4 6 2}{helpb udiff##postest:estat kappa} computes kappa indices after {cmd:udiff}; see {help udiff##postest:below}.{p_end}
 
 
 {marker description}{...}
@@ -96,7 +99,7 @@
 {pstd}
     The original unidiff model has been expressed as a log-linear model of cell
     frequencies in a three-way contingency table (origin by destination by
-    cohort or country). The model, however, can also be expressed at the 
+    cohort or country). The model, however, can also be expressed at the
     individual-level (similar to a multinomial logit model). {cmd:udiff} estimates such a
     re-expressed unidiff model for individual-level data. Furthermore, it generalized the
     model to allow for multiple layers and non-categorical predictors. For details see
@@ -111,38 +114,38 @@
     {it:xvars} specifies the origin variable(s) (e.g. class of
     respondent's parents). Typically, {it:xvars} is a single
     categorical variable specified as {cmd:i.}{it:varname}, although multiple
-    variables as well as continuous variables are allowed. 
+    variables as well as continuous variables are allowed.
 
 {pstd}
     {it:layervars} specifies the layer variable(s) to be interacted with
     {it:xvars}. Typically, {it:layervars} is a single categorical variable
-    specified as {cmd:i.}{it:varname} (e.g. countries or birth-cohort 
+    specified as {cmd:i.}{it:varname} (e.g. countries or birth-cohort
     categories), although multiple variables as well as continuous variables
-    are allowed. For example, specify {cmd:(}{it:xvars} {cmd:<-} 
+    are allowed. For example, specify {cmd:(}{it:xvars} {cmd:<-}
     {cmd:c.cohort##c.cohort}{cmd:)} to model the unidiff scaling factor
     as a quadratic function of variable {cmd:cohort}. Likewise, if your data
-    contains information on countries and birth cohorts, you could type 
+    contains information on countries and birth cohorts, you could type
     {cmd:(}{it:xvars} {cmd:<-} {cmd:i.country i.cohort}{cmd:)} to include
     separate unidiff parameters for both dimensions. Furthermore, you could
     type  {cmd:(}{it:xvars} {cmd:<-} {cmd:i.country##i.cohort}{cmd:)}
     to include unidiff parameters for all country-cohort combinations.
 
 {pstd}
-    {it:controllvars} are control variables whose effects are assumed to be 
-    constant across layers. 
+    {it:controllvars} are control variables whose effects are assumed to be
+    constant across layers.
 
 
 {marker options}{...}
 {title:Options}
 
 {phang}
-    {opt cfonly} causes the constant-fluidity model to be reported instead 
+    {opt cfonly} causes the constant-fluidity model to be reported instead
     of the unidiff model. Estimation of the unidiff model will be skipped.
 
 {phang}
-    {opth constraints(numlist)} applies linear constraints to 
-    the estimation. {it:numlist} specifies the constraints by number, after 
-    they have been defined using the {helpb constraint} command. An  
+    {opth constraints(numlist)} applies linear constraints to
+    the estimation. {it:numlist} specifies the constraints by number, after
+    they have been defined using the {helpb constraint} command. An
     {help udiff##exconstr:example} is provided below.
 
 {phang}
@@ -180,8 +183,8 @@
     confidence intervals are transformed accordingly.
 
 {phang}
-    {opt noheader} suppresses the header above the coefficient table 
-    that displays the final log-likelihood value, the number of observations, 
+    {opt noheader} suppresses the header above the coefficient table
+    that displays the final log-likelihood value, the number of observations,
     and the unidiff significance test.
 
 {phang}
@@ -198,8 +201,8 @@
     constant-fluidity model. By default, the initial model is not displayed.
 
 {phang}
-    {it:maximize_options} are maximization options such as {cmd:iterate()} or 
-    {cmd:difficult}. See {helpb maximize:[R] maximize}. These options will only 
+    {it:maximize_options} are maximization options such as {cmd:iterate()} or
+    {cmd:difficult}. See {helpb maximize:[R] maximize}. These options will only
     be applied to the unidiff model, but not to the initial constant-fluidity model.
 
 
@@ -207,9 +210,117 @@
 {title:Postestimation commands}
 
 {pstd}
-    Usual postestimation commands such as {helpb predict}, {helpb test}, 
+    Usual postestimation commands such as {helpb predict}, {helpb test}, {helpb estat},
     {helpb lincom}, {helpb nlcom}, {helpb margins}, or {helpb suest} are available
-    after {cmd:udiff}. The syntax for {helpb predict} is as follows:
+    after {cmd:udiff}. Details on {cmd:estat} and {cmd:predict} are as follows.
+
+{pstd}
+    Note that, after a model that has been estimated using the {helpb svy}
+    prefix, {cmd:estat rescale}, {cmd:estat lambda}, and {cmd:estat kappa} have to be specified as
+
+        {cmd:. udiff_estat} {it:subcmd}
+
+{pstd}
+    where {it:subcmd} is {cmd:rescale}, {cmd:lambda}, or {cmd:kappa}.
+
+{dlgtab:estat rescale}
+
+{p 8 15 2}
+    {cmd:estat} {cmdab:res:cale} [{it:{help numlist}}] [{cmd:,} {opt post} {opt l:evel(#)} {it:{help estimation_options##display_options:display_options}} ]
+
+{pstd}
+    Report rescaled unidiff parameters using the normalization suggested by
+    Xie (1992). The normalization is only supported for unidiff terms that contain
+    a single categorical layer variable specified as {cmd:i.}{it:varname}
+    (factor variable). The normalization is such that the sum of the squared
+    parameters equals 1 (within each unidiff term).
+
+{phang}
+    {it:numlist} specifies the unidiff terms to be included; this is only
+    relevant if a model contains multiple unidiff terms. The default is to
+    include all unidiff terms found in the model. To only include, say, the
+    second unidiff term, type {cmd:estat rescale 2}.
+
+{phang}
+    {opt post} causes the rescaled results to be posted in {cmd:e(b)} and {cmd:e(V)}. This
+    will clear out the previous estimation results. Without the {cmd:post} option, the results
+    are stored in {cmd:r(b)} and {cmd:r(V)}; see {help udiff##saved_results:Saved results} below.
+
+{phang}
+    {opt level(#)} specifies the confidence level, as a percentage, for
+    confidence intervals. The default is {cmd:level(95)}
+    or as set by {helpb set level}.
+
+{phang}
+    {it:display_options} are standard display options; see
+    {helpb estimation_options##display_options:[R] estimation options}.
+
+{dlgtab:estat lambda}
+
+{p 8 15 2}
+    {cmd:estat} {cmdab:lam:bda} [{it:#}] [{cmd:,} {opt std:ize} {opt eform} {opt comp:act} {opt post} {opt l:evel(#)} {it:{help estimation_options##display_options:display_options}} ]
+
+{pstd}
+    Report lambda coefficients for unidiff term {it:#} (if {it:#} is omitted,
+    the first unidiff term is used). {cmd:estat lambda} only supports unidiff terms that contain
+    a single categorical layer variable and a single categorical predictor, both specified
+    as {cmd:i.}{it:varname} (factor variable). See Pisati (2000) for a definition
+    of the lambda coefficients.
+
+{phang}
+    {opt stdize} requests standardized lambda coefficients. The default is to
+    report raw lambda coefficients.
+
+{phang}
+    {opt eform} reports the results in exponentiated form.
+
+{phang}
+    {opt compact} requests that the lambda coefficients be displayed in a
+    two-way table with one column per outcome level. Standard errors will not be displayed
+    in this case. The default is to display the coefficients in a one-way
+    table including standard errors and confidence intervals.
+
+{phang}
+    {opt post} causes the lambda coefficients to be posted in {cmd:e(b)} and {cmd:e(V)}. This
+    will clear out the previous estimation results. Without the {cmd:post} option, the results
+    are stored in {cmd:r(b)} and {cmd:r(V)}; see {help udiff##saved_results:Saved results} below.
+
+{phang}
+    {opt level(#)} specifies the confidence level, as a percentage, for
+    confidence intervals. The default is {cmd:level(95)}
+    or as set by {helpb set level}.
+
+{phang}
+    {it:display_options} are standard display options; see
+    {helpb estimation_options##display_options:[R] estimation options}.
+
+{dlgtab:estat kappa}
+
+{p 8 15 2}
+    {cmd:estat} {cmdab:kap:pa} [{it:#}] [{cmd:,} {opt post} {opt l:evel(#)} {it:{help estimation_options##display_options:display_options}} ]
+
+{pstd}
+    Report kappa indices coefficients for unidiff term {it:#} (if {it:#} is omitted,
+    the first unidiff term is used). {cmd:estat kappa} only supports unidiff terms that contain
+    a single categorical layer variable and a single categorical predictor, both specified
+    as {cmd:i.}{it:varname} (factor variable). See Pisati (2000) for a definition
+    of the kappa indices.
+
+{phang}
+    {opt post} causes the kappa indices to be posted in {cmd:e(b)} and {cmd:e(V)}. This
+    will clear out the previous estimation results. Without the {cmd:post} option, the results
+    are stored in {cmd:r(b)} and {cmd:r(V)}; see {help udiff##saved_results:Saved results} below.
+
+{phang}
+    {opt level(#)} specifies the confidence level, as a percentage, for
+    confidence intervals. The default is {cmd:level(95)}
+    or as set by {helpb set level}.
+
+{phang}
+    {it:display_options} are standard display options; see
+    {helpb estimation_options##display_options:[R] estimation options}.
+
+{dlgtab:predict}
 
 {p 8 15 2}
     {cmd:predict} [{it:{help datatypes:type}}] {newvar} {ifin} [{cmd:,} {opt xb} {opt e:quation(equation)} ]
@@ -221,33 +332,30 @@
     {cmd:predict} [{it:{help datatypes:type}}] {c -(}{it:stub}{cmd:*} | {help newvarlist:{it:newvarlist}}{c )-}  {ifin}{cmd:,}
     {opt sc:ores} [ {opt e:quation(equation)} ]
 
-{pstd}
-    Options:
-
-{phang2}
+{phang}
     {opt xb} calculates linear predictions for the equation specified by
     {cmd:equation()}. {cmd:xb} is the default unless {cmd:pr} or {cmd:scores}
     is specified. If {opt equation()} is omitted, linear predictions are calculated
     for the first equation.
 
-{phang2}
+{phang}
     {opt equation(equation)} specifies the equation for which linear
     predictions are to be calculated. {it:equation} can be an equation name, or
     an equation index specified as {cmd:#1}, {cmd:#2}, etc. Option
     {opt equation()} is not allowed with {cmd:pr}.
 
-{phang2}
+{phang}
     {opt pr} calculates predicted probabilities for the outcome specified by
     {cmd:outcome()}. If {opt outcome()} is omitted, predicted probabilities are
     calculated for the first outcome.
 
-{phang2}
+{phang}
     {opt outcome(outcome)} specifies the outcome for which predicted
     probabilities are to be calculated. {it:outcome} can be an
     outcome value, or an outcome index specified as {cmd:#1}, {cmd:#2}, etc. Option
     {opt outcome()} is only allowed with {cmd:pr}.
 
-{phang2}
+{phang}
     {opt scores} calculates equation-level score variables (first derivative
     of the log likelihood). If {opt equation()} is omitted, score variables
     are generated for all equations (one variable per equation; if {it:k} is
@@ -258,10 +366,13 @@
 {title:Examples}
 
     {help udiff##exbasic:Basic example}
+    {help udiff##exrescale:Normalized unidiff parameters}
+    {help udiff##exlambda:Lambda coefficients and kappa indices}
     {help udiff##exconstr:Specifying constraints}
     {help udiff##exfit:Testing model fit}
     {help udiff##excontinuous:Continuous origin variables}
     {help udiff##exmultiple:Multiple unidiff terms}
+    {help udiff##excont:Continuous layer variables}
     {help udiff##excontrol:Control variables}
 
 {marker exbasic}{...}
@@ -299,12 +410,58 @@
 
         . {stata udiff, all}
 
+{marker exrescale}{...}
+{dlgtab:Normalized unidiff parameters}
+
+{pstd}
+    To obtain rescaled unidiff parameters using the normalization suggested
+    by Xie (1992), you can apply command {helpb udiff##postest:estat rescale} after
+    model estimation:
+
+        . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
+        . {stata udiff son i.father i.country [fweight=obs], eform base}
+        . {stata estat rescale}
+
+{pstd}
+    Note that {helpb udiff##postest:estat rescale} is only supported for unidiff terms
+    that contain a single categorical layer variable.
+
+{marker exlambda}{...}
+{dlgtab:Lambda coefficients and kappa indices}
+
+{pstd}
+    To obtain lambda coefficients (see Pisati 2000) you can apply command
+    {helpb udiff##postest:estat lambda} after
+    model estimation:
+
+        . {stata "use http://www.stata.com/stb/stb55/sg142/example1.dta, clear"}
+        . {stata udiff son i.father i.country [fweight=obs], eform base}
+        . {stata estat lambda, stdize eform compact}
+
+{pstd}
+    The {cmd:compact} option has been specified to display the coefficients
+    in a two-way table. This means that standard errors are not
+    shown. Omit the {cmd:compact} option if you are interested in the standard
+    errors or confidence intervals.
+
+{pstd}
+    The kappa indices, which are based on standardized lambda coefficients, can
+    be obtained as follows:
+
+        . {stata estat kappa}
+
+{pstd}
+    Note that {helpb udiff##postest:estat lambda} and {helpb udiff##postest:kappa} are
+    only supported for unidiff terms
+    that contain a single categorical layer variable and a single categorical
+    predictor.
+
 {marker exconstr}{...}
 {dlgtab:Specifying constraints}
 
 {pstd}
-    In case of empty cells or similar problems, it may be necessary to specify 
-    constraints for the model to converge. Using the same data as above, assume 
+    In case of empty cells or similar problems, it may be necessary to specify
+    constraints for the model to converge. Using the same data as above, assume
     that the combinations of father = "NonManual" and son = "Farm" is missing:
 
         . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
@@ -336,7 +493,7 @@
         . {cmd:lrtest udiff ., force}
 
 {pstd}
-    Option {cmd:force} is needed because different estimation commands have been 
+    Option {cmd:force} is needed because different estimation commands have been
     used to estimate the two models.
 
 {pstd}
@@ -348,9 +505,9 @@
 {dlgtab:Continuous origin variables}
 
 {pstd}
-    Assume that, apart from the categorical information on father's class, 
-    your data also contains a continuous origin variable such as father's ISEI score 
-    ({cmd:fisei}). Such information could easily be included in the model by adding the 
+    Assume that, apart from the categorical information on father's class,
+    your data also contains a continuous origin variable such as father's ISEI score
+    ({cmd:fisei}). Such information could easily be included in the model by adding the
     variable to the list of predictors in the unidiff term:
 
         . {cmd:udiff son (i.father fisei <- i.country)}
@@ -359,18 +516,58 @@
 {dlgtab:Multiple unidiff terms}
 
 {pstd}
-    Assume your data also contains information on mothers. You could include this 
+    Assume your data also contains information on mothers. You could include this
     information in the unidiff model, for example, as follows:
 
         . {cmd:udiff son (i.father i.mother <- i.country)}
 
 {pstd}
-    In this case, a single unidiff scaling factor would be used for both the effects of 
-    fathers and the effects of mothers. To use different unidiff factors and thus 
-    allow the effects of father and mothers to vary differently across countries, you 
+    In this case, a single unidiff scaling factor would be used for both the effects of
+    fathers and the effects of mothers. To use different unidiff factors and thus
+    allow the effects of father and mothers to vary differently across countries, you
     could type:
 
         . {cmd:udiff son (i.father <- i.country) (i.mother <- i.country)}
+
+{marker excont}{...}
+{dlgtab:Continuous layer variables}
+
+{pstd}
+    The layer variable(s) do not need to be categorical. For example, if you have
+    individual-level data containing information on the birth years
+    of the respondents, you could model the layer effects
+    as a parabolic function of the birth year to analyze how social mobility changes over
+    time. To avoid convergence issues it is
+    a good idea to center the birth years at a date that actually exists in the data. For
+    example, define {cmd:cohort} = (birth year - 1980) and then type
+
+        . {cmd:udiff son (i.father <- c.cohort##c.cohort)}
+
+{pstd}
+    Likewise, you could model the layer effects in terms of country characteristics:
+
+        . {stata "use http://www.stata.com/stb/stb55/sg142/example2.dta, clear"}
+        . {stata udiff son (i.father <- develop socdem i.east i.asia) [fweight=obs]}
+
+{pstd}
+    Statistical inference may not be credible in this example and we might want to
+    cluster on countries:
+
+        . {stata udiff son (i.father <- develop socdem i.east i.asia) [fweight=obs], cluster(country)}
+
+{pstd}
+    No value for the joint Wald test of the unidiff parameters (i.e. the
+    test against the constant-fluidity model) is reported in this case due to the
+    way how {helpb ml} (the underlying command used for model estimation) determines the
+    degrees of freedom for the test. You can obtain the test using the
+    {helpb test} command after model estimation:
+
+        . {stata test [Phi]}
+
+{pstd}
+    However, note that the number of countries is small. Cluster-robust
+    standard errors may be inconsistent in such a setting (a general recommendation
+    is that the number of clusters should be at least 40 or 50).
 
 {marker excontrol}{...}
 {dlgtab:Control variables}
@@ -378,14 +575,14 @@
 {pstd}
     Assume that the age structure (or distribution of birth years) is different
     across countries and you want to take account of that in your analysis. You could,
-    for example, type 
+    for example, type
 
         . {cmd:udiff son (i.father <- i.country) age}
 
 {pstd}
-    In this way a an age effect that is common to all countries is included 
+    In this way a an age effect that is common to all countries is included
     in the model. You could, of course, also use a more complex specification,
-    such as, e.g., 
+    such as, e.g.,
 
         . {cmd:udiff son (i.father <- i.country) c.age##c.age}
 
@@ -484,17 +681,18 @@
 {p 12 12 2}exp(W'{it:theta}(y) + X1'{it:psi1}(y) * exp(Z1'{it:phi1}) + X2'{it:psi2}(y) * exp(Z2'{it:phi2})) / D{p_end}
 
 {pstd}
-    where W = (1, Z1', Z2', C')'. The model can be extended analogously 
+    where W = (1, Z1', Z2', C')'. The model can be extended analogously
     to accommodate more than two unidiff terms.
 
 {dlgtab:Estimation}
 
 {pstd}
     {cmd:udiff} estimates the unidiff model using {helpb ml}. To obtain good
-    starting values, {cmd:udiff} first fits a constant-fluidity model (which is 
-    equivalent to a standard {helpb mlogit} model). A test of the unidiff model
-    against the constant-fluidity model is included in the output (as an LR
-    test or a Wald test, depending on context).
+    starting values, {cmd:udiff} first fits a constant-fluidity model (which is
+    equivalent to a standard {helpb mlogit} model ignoring the layer
+    variables). A test of the unidiff model against the constant-fluidity model
+    is included in the output (as an LR test or a Wald test, depending on
+    context).
 
 {pstd}
     As usual in a multinomial logit, the coefficients are set to zero for one
@@ -504,7 +702,7 @@
 
 {pstd}
     Estimating the unidiff model from individual-level data is more demanding
-    than fitting the model to a contingency table (although note that, for 
+    than fitting the model to a contingency table (although note that, for
     efficient computation, {cmd:fweight}s can be used on collapsed data),
     but it brings about enhanced flexibility. For example, it is easily
     possible to include continuous (rather than categorical) origin and layer
@@ -533,6 +731,12 @@
     {p_end}
 
 {p2col 5 22 26 2: Macros}{p_end}
+{p2col : {cmd:e(cmd)}}{cmd:udiff}
+    {p_end}
+{p2col : {cmd:e(predict)}}{cmd:udiff_p}
+    {p_end}
+{p2col : {cmd:e(estat_cmd)}}{cmd:udiff_estat}
+    {p_end}
 {p2col : {cmd:e(cfonly)}}{cmd:cfonly} or empty
     {p_end}
 {p2col : {cmd:e(layervars)}}names of layer variables; if {cmd:e(k_unidiff)}=1
@@ -552,6 +756,66 @@
 {p2col : {cmd:e(baseout)}}value of {it:depvar} treated as the base outcome
     {p_end}
 {p2col : {cmd:e(out_labels)}}value labels of {it:depvar} (if available)
+    {p_end}
+
+{pstd}
+    Without the {cmd:post} option, {cmd:estat rescale}, {cmd:estat lambda}, and {cmd:estat kappa} store the following
+    results in {cmd:r()}:
+
+{p2colset 7 22 26 2}{...}
+{p2col 5 22 26 2: Scalars}{p_end}
+{p2col : {cmd:r(N)}}number of observations
+    {p_end}
+
+{p2col 5 22 26 2: Matrices}{p_end}
+{p2col : {cmd:r(b)}}coefficients
+    {p_end}
+{p2col : {cmd:r(V)}}variance matrix
+    {p_end}
+{p2col : {cmd:r(lambda)}}compact representation coefficients ({cmd:estat lambda} only)
+    {p_end}
+
+{pstd}
+    Without the {cmd:post} option, {cmd:estat rescale},
+    {cmd:estat lambda}, and
+    {cmd:estat kappa}
+    store the following results in {cmd:e()}:
+
+{p2colset 7 22 26 2}{...}
+{p2col 5 22 26 2: Scalars}{p_end}
+{p2col : {cmd:r(N)}}number of observations
+    {p_end}
+{p2col : {cmd:r(N_clust)}}number of clusters (if {it:vcetype} is {cmd:cluster})
+    {p_end}
+{p2col : {cmd:r(k_eq)}}number of equations
+    {p_end}
+{p2col : {cmd:e(k_eform)}}number of equations to be affected by the {cmd:eform} option
+    {p_end}
+
+{p2col 5 22 26 2: Macros}{p_end}
+{p2col : {cmd:e(cmd)}}{cmd:udiff_estat}
+    {p_end}
+{p2col : {cmd:e(subcmd)}}{cmd:rescale} or {cmd:lambda}
+    {p_end}
+{p2col : {cmd:e(estat_cmd)}}{cmd:udiff_estat}
+    {p_end}
+{p2col : {cmd:e(title)}}title used in output
+    {p_end}
+{p2col : {cmd:e(vce)}}{it:vcetype} as specified when calling {cmd:udiff}
+    {p_end}
+{p2col : {cmd:e(vcetype)}}title used to label Std. Err.
+    {p_end}
+{p2col : {cmd:e(clustvar)}}name of cluster variable
+    {p_end}
+{p2col : {cmd:e(properties)}}{cmd:b V}
+    {p_end}
+
+{p2col 5 22 26 2: Matrices}{p_end}
+{p2col : {cmd:e(b)}}coefficients
+    {p_end}
+{p2col : {cmd:e(V)}}variance matrix
+    {p_end}
+{p2col : {cmd:r(lambda)}}compact representation coefficients ({cmd:estat lambda} only)
     {p_end}
 
 
@@ -588,5 +852,5 @@
 {pmore}
     Jann, B., S. Seiler. 2019. udiff: Stata module to estimate the generalized
     unidiff model for individual-level data. Available from
-    {browse "http://github.com/benjann/udiff"}.
+    {browse "http://ideas.repec.org/c/boc/bocode/s458711.html"}.
 

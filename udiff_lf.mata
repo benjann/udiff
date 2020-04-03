@@ -1,4 +1,4 @@
-*! version 1.1.2  13nov2019  Ben Jann & Simon Seiler
+*! version 1.1.3  03apr2020  Ben Jann & Simon Seiler
 
 version 11
 mata:
@@ -25,7 +25,7 @@ void udiff_lf2(transmorphic scalar ML, real scalar todo, real rowvector b,
     base = strtoreal(st_global("UDIFF_ibase"))
     
     // get rid of base outcome
-    out = select(out, out:!=base)
+    out = select(out, (1..J):!=base)
     J = J - 1
     
     // get Y and compute equation-level linear predictors
@@ -194,7 +194,7 @@ void udiff_lf2_m0(transmorphic scalar ML, real scalar todo, real rowvector b,
     base = strtoreal(st_global("UDIFF_ibase"))
     
     // get rid of base outcome
-    out = select(out, out:!=base)
+    out = select(out, (1..J):!=base)
     J = J - 1
     
     // get Y and compute equation-level linear predictors

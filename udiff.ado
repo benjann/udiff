@@ -1,4 +1,4 @@
-*! version 1.1.8  13nov2019  Ben Jann & Simon Seiler
+*! version 1.1.9  16nov2019  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -37,7 +37,6 @@ program Estimate, eclass
             ]
     if "`lfado'"=="" local lfspec lf2 udiff_lf2()
     else             local lfspec lf  udiff_lf
-    if "`cfonly'"!="" local allequations allequations
     if "`noisily'"=="" local quietly quietly
     ParseVarlist `anything' // returns depvar, controls, xvars, xvars#, layer#, layers, nunidiff
     local vceopt =  `:length local vce'      | ///
@@ -82,15 +81,18 @@ program Estimate, eclass
     local xvars
     local layers
     forv i=1/`nunidiff' {
+        local XVARS`i' `xvars`i''
         fvexpand `xvars`i'' if `touse'
         local xvars`i' `r(varlist)'
         local xvars `xvars' `r(varlist)'
+        local LAYER`i' `layer`i''
         fvexpand `layer`i'' if `touse'
         local layer`i' `r(varlist)'
         local layer`i': list uniq layer`i'
         local layers: list layers | layer`i'
     }
     if `"`controls'"'!="" {
+        local CONTROLS `controls'
         fvexpand `controls' if `touse'
         local controls `r(varlist)'
     }
@@ -271,19 +273,20 @@ program Estimate, eclass
     eret scalar k_unidiff  = `nunidiff'
     eret local predict    "udiff_p"
     eret local cmd        "udiff"
+    eret local estat_cmd  "udiff_estat"
     eret local out        "`out'"
     eret local baseout    "`baseout'"
     eret local out_labels `"`out_labels'"'
     eret local eqnames    `"`eqnames'"'
-    eret local controlvars   `"`controls'"'
+    eret local controlvars   `"`CONTROLS'"'
     forv j=1/`nunidiff' {
         if `nunidiff'==1 {
-            eret local layervars `"`layer`j''"'
-            eret local xvars     `"`xvars`j''"'
+            eret local layervars `"`LAYER`j''"'
+            eret local xvars     `"`XVARS`j''"'
         }
         else {
-            eret local layervars`j' `"`layer`j''"'
-            eret local xvars`j'     `"`xvars`j''"'
+            eret local layervars`j' `"`LAYER`j''"'
+            eret local xvars`j'     `"`XVARS`j''"'
         }
     }
     eret local cfonly     "`cfonly'"
@@ -357,6 +360,8 @@ end
 
 program Display
     syntax [, ALLequations noHeader * ]
+    local cfonly `"`e(cfonly)'"'
+    if "`cfonly'"!="" local allequations allequations
     if "`allequations'"=="" local first neq(`e(k_unidiff)')
     if "`header'"=="" {
         _coef_table_header
@@ -372,9 +377,38 @@ program Display
                 }
             }
         }
+        else if `"`cfonly'"'=="" {
+            di ""
+            local nunidiff = e(k_unidiff)
+            if `nunidiff'==1 {
+                Display_truncate_exp `": `e(layervars)' -> `e(xvars)'"'
+                di as txt %13s "Phi" `"`exp'"'
+            }
+            else if `nunidiff'>1 & `nunidiff'<. {
+                forv i = 1/`nunidiff' {
+                    Display_truncate_exp `": `e(layervars`i')' -> `e(xvars`i')'"'
+                    di as txt %13s "Phi`i'" `"`exp'"'
+                }
+            }
+            local controls `"`e(controlvars)'"'
+            if `"`controls'"'!="" {
+                Display_truncate_exp `": `controls'"'
+                di as txt %13s "Controls" `"`exp'"'
+            }
+        }
     }
     di ""
     ml display, noheader `first' `options'
+end
+
+program Display_truncate_exp
+    args exp
+    local linesize = max(78, c(linesize))
+    if strlen(`"`exp'"')>(`linesize'-13) {
+        local exp: piece 1 `=`linesize'-17' of `"`exp'"'
+        local exp `"`exp' ..."'
+    }
+    c_local exp `"`exp'"'
 end
 
 version 11
