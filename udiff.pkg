@@ -1,8 +1,9 @@
 v 3
-d udiff
+d udiff: module to estimate the generalized unidiff model for individual-level data
+d 
 d Author: Ben Jann, University of Bern, ben.jann@soz.unibe.ch
 d
-d Distribution-Date: 16apr2020
+d Distribution-Date: 20200416
 f udiff_p.ado
 f udiff.sthlp
 f udiff_lf.mata
