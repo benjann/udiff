@@ -1,0 +1,12 @@
+v 3
+d udiff
+d Author: Ben Jann, University of Bern, ben.jann@soz.unibe.ch
+d
+d Distribution-Date: 16apr2020
+f udiff_p.ado
+f udiff.sthlp
+f udiff_lf.mata
+f udiff.ado
+f udiff_estat.ado
+f udiff_lf.ado
+f ludiff.mlib

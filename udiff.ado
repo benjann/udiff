@@ -1,4 +1,4 @@
-*! version 1.1.9  16nov2019  Ben Jann & Simon Seiler
+*! version 1.2.0  10apr2020  Ben Jann & Simon Seiler
 
 program udiff, eclass byable(recall) properties(svyb svyj svyr mi)
     version 11
@@ -311,12 +311,31 @@ program ParseVarlist
     c_local depvar `depvar'
     local k 0
     while (`"`vlist'"'!="") {
-        gettoken term : vlist, match(par) bind
-        if `"`par'"'=="(" { // term is "(...)"
+        // Step 1: check whether next token is a "(...)" term
+        // - this is true if the remainder after the token is empty, starts
+        //   with a blank, or starts with "("
+        // - it can be false in case of a specification such as, e.g., "(x y)#z"
+        gettoken term rest : vlist, match(par) bind
+        if `"`par'"'=="(" {
+            if !inlist(strtrim(substr(`"`rest'"',1,1)),"","(") {
+                local par // reset so that not treated as "(...)"
+            }
+        }
+        // Step 2: process vlist depending on step 1
+        // - case 1; advanced syntax; next token is a "(...)" term
+        if `"`par'"'=="(" {
             gettoken term vlist : vlist, match(par) bind
         }
         else {
-            if `k'>0 {  // controlvars
+        // - case 2; simple syntax: no "(...)" term encountered yet; treat
+        //   entire vlist as a single unidiff term
+            if `k'==0 {
+                mata: st_local("term", strtrim(st_local("vlist")))
+                local vlist
+            }
+        // - case 3; advanced syntax: at least one "(...)" term encountered;
+        //   treat remaining vlist as controlvars and exit (skipping step 3)
+            else {
                 local 0 `"`vlist'"'
                 capt n syntax varlist(numeric fv)
                 if _rc {
@@ -326,9 +345,8 @@ program ParseVarlist
                 local controls `varlist'
                 continue, break
             }
-            mata: st_local("term", strtrim(st_local("vlist")))
-            local vlist
         }
+        // Step 3: parse unidiff term
         local ++k
         mata: parse_udiffterm(st_local("term"))
         local 0 `"`x'"'
